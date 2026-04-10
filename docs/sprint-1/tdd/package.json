@@ -1,0 +1,25 @@
+{
+  "name": "growforme-farm-budget-tdd",
+  "version": "0.1.0",
+  "description": "TDD suite for GrowForMe Farm Budget critical components",
+  "scripts": {
+    "test": "jest --coverage",
+    "test:watch": "jest --watch"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "coverageThreshold": {
+      "global": {
+        "lines": 80,
+        "functions": 80,
+        "branches": 80
+      }
+    },
+    "coverageReporters": [
+      "text",
+      "lcov"
+    ]
+  }
+}
