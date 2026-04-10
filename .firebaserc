@@ -1,0 +1,9 @@
+{
+  "projects": {
+    "staging": "grow4me-staging",
+    "production": "grow4me-prod",
+    "default": "grow4me-staging"
+  },
+  "targets": {},
+  "etags": {}
+}

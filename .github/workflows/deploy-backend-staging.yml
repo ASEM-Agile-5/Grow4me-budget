@@ -1,0 +1,44 @@
+name: Deploy Backend (Staging)
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - 'backend/**'
+
+jobs:
+  deploy:
+    name: Build & Deploy Backend to Staging
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      - name: Build and push Docker image
+        run: |
+          docker build -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/grow4me/backend:dev \
+            ./backend
+          docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/grow4me/backend:dev
+
+      - name: Deploy to Cloud Run (Staging)
+        run: |
+          gcloud run deploy grow4me-backend-staging \
+            --image us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/grow4me/backend:dev \
+            --platform managed \
+            --region us-central1 \
+            --allow-unauthenticated \
+            --set-env-vars DJANGO_ENV=staging,DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }},DATABASE_URL=${{ secrets.DATABASE_URL }} \
+            --project ${{ secrets.GCP_PROJECT_ID }}

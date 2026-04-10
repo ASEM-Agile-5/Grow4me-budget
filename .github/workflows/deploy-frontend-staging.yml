@@ -1,0 +1,41 @@
+name: Deploy Frontend (Staging)
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - 'frontend/**'
+
+jobs:
+  deploy:
+    name: Build & Deploy Frontend to Staging
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build
+        run: npm run build
+        working-directory: frontend
+        # TODO: add env.VITE_API_URL once backend is deployed
+
+      - name: Deploy to Firebase Staging
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
+          channelId: live
