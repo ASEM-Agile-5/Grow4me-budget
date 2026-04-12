@@ -55,7 +55,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
 ]
 
-CORS_ALLOW_ALL_ORIGINS = os.getenv('K_SERVICE') is not None or os.getenv('K_JOB') is not None
+CORS_ALLOW_ALL_ORIGINS = os.getenv('K_SERVICE') is not None or os.getenv('CLOUD_RUN_JOB') is not None
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -95,7 +95,7 @@ WSGI_APPLICATION = 'grow4me_budget_app.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-if os.getenv('K_SERVICE') or os.getenv('K_JOB'):
+if os.getenv('K_SERVICE') or os.getenv('CLOUD_RUN_JOB'):
     # Running on Cloud Run - use Cloud SQL via Unix socket
     DATABASES = {
         'default': {
