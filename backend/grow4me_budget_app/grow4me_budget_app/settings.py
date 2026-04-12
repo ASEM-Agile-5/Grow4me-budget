@@ -158,3 +158,9 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.run.app',
+    'http://localhost:8080',
+    'http://localhost:5173',
+]
