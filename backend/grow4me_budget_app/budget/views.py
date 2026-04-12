@@ -568,7 +568,7 @@ class SaleListView(views.APIView):
 
         try:
             sales = Sale.objects.filter(user=user).select_related(
-                'budget', 'budget_item', 'budget_item__category'
+                'budget'
             ).order_by('-date')
             serializer = SaleSerializer(sales, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -595,28 +595,6 @@ class CreateSaleView(views.APIView):
             serializer = CreateSaleSerializer(data=request.data)
             if serializer.is_valid():
                 sale = serializer.save(user=user)
-
-                # Auto-create inventory removal if applicable
-                if sale.quantity > 0 and sale.budget_item and sale.budget_item.inventory:
-                    budget_item = sale.budget_item
-                    
-                    # Ensure it has an inventory record
-                    inventory_item, created = InventoryItem.objects.get_or_create(
-                        budget_item=budget_item,
-                        defaults={
-                            'user': user,
-                            'units': 'units' 
-                        }
-                    )
-
-                    # Record the stock removal
-                    InventoryMovement.objects.create(
-                        budget_item=budget_item,
-                        user=user,
-                        action='remove_stock',
-                        quantity=sale.quantity,
-                        notes=f'Sale to {sale.buyer}' if sale.buyer else 'Removed for sale',
-                    )
 
                 return Response({
                     "message": "Sale created successfully",

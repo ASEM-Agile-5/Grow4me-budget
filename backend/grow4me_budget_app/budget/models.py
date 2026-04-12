@@ -120,13 +120,11 @@ class Sale(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     budget = models.ForeignKey(Budget, on_delete=models.CASCADE, related_name='sales')
-    budget_item = models.ForeignKey(BudgetItem, on_delete=models.SET_NULL, null=True, blank=True, related_name='sales')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sales')
-    
+    product = models.CharField(max_length=255)
     quantity = models.IntegerField(default=1)
     price_per_unit = models.DecimalField(max_digits=12, decimal_places=2)
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, editable=False)
-    
     date = models.DateField()
     buyer = models.CharField(max_length=255, blank=True, default='')
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='paid')
@@ -135,8 +133,6 @@ class Sale(models.Model):
 
     def save(self, *args, **kwargs):
         self.total_amount = self.price_per_unit * self.quantity
-        if self.budget_item and not getattr(self, 'budget_id', None):
-            self.budget = self.budget_item.budget
         super().save(*args, **kwargs)
 
     def __str__(self):

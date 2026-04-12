@@ -216,12 +216,11 @@ class InventoryListSerializer(serializers.ModelSerializer):
 class SaleSerializer(serializers.ModelSerializer):
     """GET all sales."""
     budget_name = serializers.CharField(source='budget.name', read_only=True)
-    product_name = serializers.CharField(source='budget_item.category.category_name', read_only=True)
 
     class Meta:
         model = Sale
         fields = [
-            'id', 'budget', 'budget_name', 'budget_item', 'product_name',
+            'id', 'budget', 'budget_name', 'product',
             'quantity', 'price_per_unit', 'total_amount', 'date',
             'buyer', 'payment_status', 'created_at'
         ]
@@ -229,16 +228,8 @@ class SaleSerializer(serializers.ModelSerializer):
 class CreateSaleSerializer(serializers.ModelSerializer):
     """POST sale."""
     budget = serializers.PrimaryKeyRelatedField(queryset=Budget.objects.all(), required=False)
-    budget_item = serializers.PrimaryKeyRelatedField(queryset=BudgetItem.objects.all(), required=True)
 
     class Meta:
         model = Sale
-        fields = ['budget', 'budget_item', 'quantity', 'price_per_unit', 'date', 'buyer', 'payment_status']
+        fields = ['budget', 'product', 'quantity', 'price_per_unit', 'date', 'buyer', 'payment_status']
 
-    def validate(self, attrs):
-        if 'budget_item' in attrs:
-            bi = attrs['budget_item']
-            attrs['budget'] = bi.budget
-        elif not attrs.get('budget'):
-            raise serializers.ValidationError("Either budget_item or budget must be provided.")
-        return attrs
