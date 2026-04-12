@@ -3,7 +3,7 @@ import axios from "axios";
 import { MenuItem, Vendor } from "../models/vendors";
 
 const api = axios.create({
-  baseURL: "http://127.0.0.1:8000/",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "https://grow4me-backend-213305484430.us-central1.run.app/",
   withCredentials: true,
 });
 
