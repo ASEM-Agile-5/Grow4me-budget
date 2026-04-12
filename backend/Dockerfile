@@ -7,9 +7,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+WORKDIR /app/grow4me_budget_app
+
 RUN python manage.py collectstatic --noinput
 
 EXPOSE 8080
 
-# Cloud Run injects the PORT env variable; gunicorn binds to it
-CMD exec gunicorn --bind 0:$PORT --workers 2 --threads 4 grow4me.wsgi:application
+CMD exec gunicorn --bind 0:$PORT --workers 2 --threads 4 grow4me_budget_app.wsgi:application
