@@ -52,7 +52,7 @@ const Expenses = () => {
     amount: "",
     date: new Date().toISOString().split("T")[0],
     notes: "",
-    inventoryQuantity: "",
+    quantity: "",
   });
 
   // Fetch details for the budget selected in the ADD FORM to populate "Budget Item / Category"
@@ -111,7 +111,7 @@ const Expenses = () => {
 
   const matchedInventoryItem = availableItems.find(
     (bi: any) =>
-      bi.id.toString() === form.budgetItemId.toString() && bi.trackInventory,
+      bi.id?.toString() === form.budgetItemId?.toString() && bi.trackInventory,
   );
 
   const handleSave = async () => {
@@ -125,8 +125,8 @@ const Expenses = () => {
         date: form.date,
         notes: form.notes,
         quantity:
-          matchedInventoryItem && form.inventoryQuantity
-            ? Number(form.inventoryQuantity)
+          matchedInventoryItem && form.quantity
+            ? Number(form.quantity)
             : undefined,
       });
       setForm({
@@ -135,7 +135,7 @@ const Expenses = () => {
         amount: "",
         date: new Date().toISOString().split("T")[0],
         notes: "",
-        inventoryQuantity: "",
+        quantity: "",
       });
       setDialogOpen(false);
     } catch (err) {
@@ -277,11 +277,11 @@ const Expenses = () => {
                         id="expense-inventory-qty"
                         type="number"
                         min={0}
-                        value={form.inventoryQuantity}
+                        value={form.quantity}
                         onChange={(e) =>
                           setForm((f) => ({
                             ...f,
-                            inventoryQuantity: e.target.value,
+                            quantity: e.target.value,
                           }))
                         }
                         placeholder="e.g. 10"
