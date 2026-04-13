@@ -429,7 +429,7 @@ const BudgetDetail = () => {
                   </div>
                   <div className="rounded-lg border p-3 text-center">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                      Actual
+                      Actual Amount
                     </p>
                     <p className="text-lg font-bold text-warning">
                       GHS {detailItem.spent.toLocaleString()}
@@ -619,8 +619,10 @@ const BudgetDetail = () => {
               <thead>
                 <tr className="border-b text-left text-muted-foreground">
                   <th className="pb-3 font-medium">Category</th>
-                  <th className="pb-3 font-medium text-right">Planned</th>
-                  <th className="pb-3 font-medium text-right">Actual</th>
+                  <th className="pb-3 font-medium text-right">
+                    Planned Amount
+                  </th>
+                  <th className="pb-3 font-medium text-right">Actual Spent</th>
                   <th className="pb-3 font-medium text-right">Variance</th>
                   <th className="pb-3 font-medium text-right">Status</th>
                   <th className="pb-3 font-medium text-right">Actions</th>
