@@ -129,7 +129,7 @@ class CreateProjectView(views.APIView):
 
                 return Response({
                     "message": "Project created successfully",
-                    "projectId": str(project.project_id),
+                    "id": str(project.id),
                 }, status=status.HTTP_201_CREATED)
 
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
