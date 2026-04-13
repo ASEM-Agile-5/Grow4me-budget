@@ -20,6 +20,7 @@ from .serializers import (
     CreateInventoryItemSerializer,
     InventoryMovementSerializer,
     InventoryListSerializer,
+    InventoryHistorySerializer,
     SetMinimumStockSerializer,
     SaleSerializer,
     CreateSaleSerializer,
@@ -546,6 +547,38 @@ class InventorySummaryView(views.APIView):
                 "low_stock_alerts": low_stock,
                 "out_of_stock": out_of_stock
             }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            traceback.print_exc()
+            return Response(
+                {"error": str(e), "type": type(e).__name__},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class InventoryHistoryView(views.APIView):
+    """GET /budget/inventory/history — Get history of inventory movements."""
+
+    def get(self, request):
+        user, error_response = get_authenticated_user(request)
+        if error_response:
+            return error_response
+
+        try:
+            year = request.query_params.get('year')
+            project = request.query_params.get('project')
+
+            movements = InventoryMovement.objects.filter(
+                budget_item__budget__user=user
+            ).select_related('budget_item__category', 'user__accounts').order_by('-created_at')
+
+            if year:
+                movements = movements.filter(budget_item__budget__year=int(year))
+            if project:
+                movements = movements.filter(budget_item__budget__project_id=project)
+
+            serializer = InventoryHistorySerializer(movements, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
         except Exception as e:
             traceback.print_exc()

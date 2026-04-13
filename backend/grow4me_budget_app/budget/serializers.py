@@ -174,6 +174,28 @@ class SetMinimumStockSerializer(serializers.Serializer):
     minimum_stock = serializers.IntegerField(min_value=0)
 
 
+class InventoryHistorySerializer(serializers.ModelSerializer):
+    """GET /budget/inventory/history — Get history of inventory movements."""
+    budget_item_name = serializers.CharField(source='budget_item.category.category_name', read_only=True)
+    user = serializers.SerializerMethodField()
+
+    class Meta:
+        model = InventoryMovement
+        fields = ['id', 'budget_item', 'budget_item_name', 'action', 'quantity', 'notes', 'user', 'created_at']
+
+    def get_user(self, obj):
+        name = "Unknown"
+        if hasattr(obj.user, 'accounts'):
+            first = obj.user.accounts.first_name or ''
+            last = obj.user.accounts.last_name or ''
+            name = f"{first} {last}".strip() or obj.user.email
+        return {
+            "id": str(obj.user.id),
+            "name": name
+        }
+
+
+
 class InventoryListSerializer(serializers.ModelSerializer):
     """
     GET inventory list — aggregates current_stock per InventoryItem

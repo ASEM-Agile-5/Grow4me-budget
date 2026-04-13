@@ -14,6 +14,7 @@ from .views import (
     EditInventoryView,
     SetMinimumStockView,
     InventorySummaryView,
+    InventoryHistoryView,
     SaleListView,
     CreateSaleView,
     DashboardSummaryView,
@@ -45,6 +46,7 @@ urlpatterns = [
     path('inventory/edit', EditInventoryView.as_view()),
     path('inventory/set-minimum', SetMinimumStockView.as_view()),
     path('inventory/summary', InventorySummaryView.as_view()),
+    path('inventory/history', InventoryHistoryView.as_view()),
 
     # Sales
     path('sales', SaleListView.as_view()),
