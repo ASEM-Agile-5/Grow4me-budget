@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 import {
   useBudgets,
   useSelectedBudget,
@@ -183,8 +184,9 @@ const BudgetDetail = () => {
       setForm(emptyForm);
       setEditItem(null);
       setDialogOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      toast.error(err?.response?.data?.message || "Failed to save budget item.");
     } finally {
       setIsSaving(false);
     }
@@ -421,7 +423,7 @@ const BudgetDetail = () => {
                 <div className="grid grid-cols-3 gap-3">
                   <div className="rounded-lg border p-3 text-center">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                      Planned
+                      Planned Amount
                     </p>
                     <p className="text-lg font-bold">
                       GHS {detailItem.planned_amount.toLocaleString()}
@@ -619,10 +621,8 @@ const BudgetDetail = () => {
               <thead>
                 <tr className="border-b text-left text-muted-foreground">
                   <th className="pb-3 font-medium">Category</th>
-                  <th className="pb-3 font-medium text-right">
-                    Planned Amount
-                  </th>
-                  <th className="pb-3 font-medium text-right">Actual Spent</th>
+                  <th className="pb-3 font-medium text-right">Planned</th>
+                  <th className="pb-3 font-medium text-right">Actual</th>
                   <th className="pb-3 font-medium text-right">Variance</th>
                   <th className="pb-3 font-medium text-right">Status</th>
                   <th className="pb-3 font-medium text-right">Actions</th>

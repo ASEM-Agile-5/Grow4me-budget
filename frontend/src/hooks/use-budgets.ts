@@ -17,7 +17,8 @@ import {
   getMonthlyExpensesAPI,
   getCategoryExpensesAPI,
   getSalesAPI,
-  createSaleAPI
+  createSaleAPI,
+  getInventoryHistoryAPI
 } from "@/services/services";
 import { useState, useEffect } from "react";
 
@@ -132,6 +133,13 @@ export const useInventory = () => {
   return useQuery({
     queryKey: ["inventory"],
     queryFn: () => getInventoryAPI(),
+  });
+};
+
+export const useInventoryHistory = () => {
+  return useQuery({
+    queryKey: ["inventory-history"],
+    queryFn: () => getInventoryHistoryAPI(),
   });
 };
 

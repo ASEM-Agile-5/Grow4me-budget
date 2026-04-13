@@ -3,7 +3,7 @@ import axios from "axios";
 import { MenuItem, Vendor } from "../models/vendors";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "https://grow4me-backend-213305484430.us-central1.run.app/",
+  baseURL: "http://127.0.0.1:8000/",
   withCredentials: true,
 });
 
@@ -438,6 +438,16 @@ export const getInventoryAPI = async (year?: number, project?: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Failed to fetch inventory:", error);
+    throw error;
+  }
+};
+
+export const getInventoryHistoryAPI = async () => {
+  try {
+    const response = await api.get("budget/inventory/history");
+    return response.data;
+  } catch (error: any) {
+    console.error("Failed to fetch inventory history:", error);
     throw error;
   }
 };

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sprout, LogIn, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Sprout, LogIn, Mail, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +15,6 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +47,7 @@ const Login = () => {
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl farm-gradient mb-4">
             <Sprout className="h-6 w-6 text-white" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">Grow4me Budget</h1>
+          <h1 className="text-3xl font-bold tracking-tight">FarmBudget</h1>
           <p className="text-muted-foreground">
             Sign in to manage your farm operations
           </p>
@@ -80,21 +79,13 @@ const Login = () => {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="password"
-                  type={showPassword ? "text" : "password"}
+                  type="password"
                   placeholder="••••••••"
-                  className="pl-10 pr-10"
+                  className="pl-10"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
               </div>
             </div>
 

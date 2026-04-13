@@ -18,6 +18,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -25,10 +35,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
 import {
   useBudgets,
   useInventory,
+  useInventoryHistory,
   useAdjustInventory,
   useSetInventoryMin,
 } from "@/hooks/use-budgets";
@@ -44,6 +56,10 @@ const Inventory = () => {
     isLoading: inventoryLoading,
     error: inventoryError,
   } = useInventory();
+  const {
+    data: inventoryHistory = [],
+    isLoading: historyLoading,
+  } = useInventoryHistory();
   const adjustStockMutation = useAdjustInventory();
   const setMinimumMutation = useSetInventoryMin();
 
@@ -61,6 +77,7 @@ const Inventory = () => {
   >("added");
   const [adjustQty, setAdjustQty] = useState("");
   const [adjustNotes, setAdjustNotes] = useState("");
+  const [confirmAdjustOpen, setConfirmAdjustOpen] = useState(false);
 
   // History dialog
   const [historyItem, setHistoryItem] = useState<any | null>(null);
@@ -104,8 +121,17 @@ const Inventory = () => {
     });
   }, [inventory, filterBudget, filterStatus, searchTerm]);
 
-  const handleAdjust = async () => {
+  const handleReviewAdjust = () => {
     if (!adjustItem || !adjustQty || Number(adjustQty) <= 0) return;
+    if (!adjustNotes.trim()) {
+      toast.error("Please add a reason for the adjustment.");
+      return;
+    }
+    setConfirmAdjustOpen(true);
+  };
+
+  const handleAdjust = async () => {
+    setConfirmAdjustOpen(false);
     setIsUpdating(true);
     try {
       await adjustStockMutation.mutateAsync({
@@ -118,8 +144,9 @@ const Inventory = () => {
       setAdjustQty("");
       setAdjustNotes("");
       setAdjustType("added");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to adjust stock:", err);
+      toast.error(err?.response?.data?.message || "Failed to adjust stock. Please try again.");
     } finally {
       setIsUpdating(false);
     }
@@ -135,14 +162,15 @@ const Inventory = () => {
       });
       setEditMinItem(null);
       setEditMinValue("");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to update min stock:", err);
+      toast.error(err?.response?.data?.message || "Failed to update min stock level.");
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const loading = budgetsLoading || inventoryLoading;
+  const loading = budgetsLoading || inventoryLoading || historyLoading;
   const error = inventoryError ? "Failed to load inventory" : null;
 
   const lowStockCount = useMemo(
@@ -391,6 +419,80 @@ const Inventory = () => {
         )}
       </div>
 
+      {/* Recent Inventory History */}
+      <div className="rounded-xl border bg-card p-5">
+        <h3 className="mb-4 text-sm font-semibold">Inventory History</h3>
+        {inventoryHistory.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            No history recorded yet.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-muted-foreground">
+                  <th className="pb-3 font-medium">Date</th>
+                  <th className="pb-3 font-medium">Item</th>
+                  <th className="pb-3 font-medium">Action</th>
+                  <th className="pb-3 font-medium">User</th>
+                  <th className="pb-3 font-medium">Notes</th>
+                  <th className="pb-3 font-medium text-right">Qty</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inventoryHistory.map((h: any) => {
+                  const isAdd = h.action === "add_stock";
+                  const isReduce = h.action === "remove_stock";
+                  return (
+                    <tr key={h.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
+                      <td className="py-3 text-muted-foreground">
+                        {new Date(h.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="py-3">
+                        <span className="rounded-md bg-muted px-2 py-1 text-xs font-medium">
+                          {h.budget_item_name}
+                        </span>
+                      </td>
+                      <td className="py-3">
+                        <div className="flex items-center gap-1.5">
+                          <div
+                            className={`rounded-full p-1 ${
+                              isAdd
+                                ? "bg-success/10 text-success"
+                                : isReduce
+                                  ? "bg-destructive/10 text-destructive"
+                                  : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {isAdd ? (
+                              <Plus className="h-3 w-3" />
+                            ) : isReduce ? (
+                              <Minus className="h-3 w-3" />
+                            ) : (
+                              <SlidersHorizontal className="h-3 w-3" />
+                            )}
+                          </div>
+                          <span className="capitalize text-xs font-medium">
+                            {h.action.replace("_", " ")}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-3 text-muted-foreground">
+                        {h.user?.name || "System"}
+                      </td>
+                      <td className="py-3 text-muted-foreground">{h.notes || "—"}</td>
+                      <td className={`py-3 text-right font-medium ${isAdd ? "text-success" : isReduce ? "text-destructive" : ""}`}>
+                        {isAdd ? "+" : isReduce ? "-" : ""}{h.quantity}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* Stock Adjustment Dialog */}
       <Dialog
         open={!!adjustItem}
@@ -459,7 +561,7 @@ const Inventory = () => {
                   />
                 </div>
                 <div>
-                  <Label>Notes</Label>
+                  <Label>Notes <span className="text-destructive">*</span></Label>
                   <Textarea
                     id="adjust-notes"
                     value={adjustNotes}
@@ -468,7 +570,7 @@ const Inventory = () => {
                     rows={2}
                   />
                 </div>
-                <Button className="w-full" onClick={handleAdjust}>
+                <Button className="w-full" onClick={handleReviewAdjust}>
                   {adjustType === "added"
                     ? "Add to Stock"
                     : adjustType === "reduced"
@@ -609,6 +711,21 @@ const Inventory = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={confirmAdjustOpen} onOpenChange={setConfirmAdjustOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to permanently alter the inventory count for this unit. You will be unable to make changes to the details of this item log afterwards. Are you sure you want to finalize this transaction?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleAdjust}>Continue</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

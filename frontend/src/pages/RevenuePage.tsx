@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 import {
   useBudgets,
@@ -117,8 +118,9 @@ const RevenuePage = () => {
         buyer: "",
       });
       setDialogOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to save revenue:", err);
+      toast.error(err?.response?.data?.message || "Failed to save revenue. Please check your inputs.");
     }
   };
 

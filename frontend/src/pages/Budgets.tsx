@@ -19,6 +19,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -26,6 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 import {
   useBudgets,
   useExpenses,
@@ -59,6 +70,8 @@ const Budgets = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editBudget, setEditBudget] = useState<any | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [budgetToDelete, setBudgetToDelete] = useState<string | null>(null);
   const [filterYear, setFilterYear] = useState<string>("all");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -87,8 +100,9 @@ const Budgets = () => {
         await createBudgetMutation.mutateAsync(data);
       }
       resetDialog();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to save budget:", err);
+      toast.error(err?.response?.data?.message || "Failed to save budget.");
     } finally {
       setIsSaving(false);
     }
@@ -108,9 +122,15 @@ const Budgets = () => {
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("Are you sure you want to delete this budget?")) {
-      // Placeholder for delete mutation
-    }
+    setBudgetToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!budgetToDelete) return;
+    // Placeholder for delete mutation
+    setDeleteConfirmOpen(false);
+    setBudgetToDelete(null);
   };
 
   const resetDialog = () => {
@@ -405,6 +425,23 @@ const Budgets = () => {
           })}
         </div>
       )}
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete this budget and all its associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete Configuration
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
