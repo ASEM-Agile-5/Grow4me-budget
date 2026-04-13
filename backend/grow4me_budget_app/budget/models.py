@@ -33,7 +33,6 @@ class Budget(models.Model):
 class BudgetItem(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     budget = models.ForeignKey(Budget, on_delete=models.CASCADE, related_name='items')
-
     category = models.ForeignKey(BudgetCategory, on_delete=models.CASCADE, related_name='budget_items')
     category_name = models.CharField(max_length=255, blank=True, null=True)
     planned_amount = models.DecimalField(max_digits=12, decimal_places=2)

@@ -81,6 +81,7 @@ class BudgetCategorySerializer(serializers.ModelSerializer):
 
 class CreateBudgetItemSerializer(serializers.ModelSerializer):
     """POST budget item — budget ID in request body."""
+    id = serializers.UUIDField(read_only=True)
     category_id = serializers.SerializerMethodField()
     inventory = serializers.BooleanField(write_only=True, required=False, default=False)
     quantity = serializers.IntegerField(write_only=True, required=False, default=0)
@@ -90,7 +91,7 @@ class CreateBudgetItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = BudgetItem
         fields = [
-            'budget', 'category', 'category_id', 'planned_amount', 'spent',
+            'id', 'budget', 'category_id', 'planned_amount', 'spent',
             'category_name', 'inventory', 'quantity', 'units'
         ]
         read_only_fields = ['category_name']
