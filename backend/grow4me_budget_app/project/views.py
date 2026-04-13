@@ -159,7 +159,7 @@ class AddUserToProjectView(views.APIView):
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
             user_id = payload['user_id']
             user = User.objects.get(id=user_id)
-            project = Projects.objects.get(project_id=project_id)
+            project = Projects.objects.get(id=project_id)
 
             membership, created = Membership.objects.get_or_create(
                 user=user,
