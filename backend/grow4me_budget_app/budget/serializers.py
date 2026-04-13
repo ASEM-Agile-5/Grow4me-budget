@@ -91,7 +91,7 @@ class CreateBudgetItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = BudgetItem
         fields = [
-            'id', 'budget', 'category_id', 'planned_amount', 'spent',
+            'id', 'budget', 'category', 'category_id', 'planned_amount', 'spent',
             'category_name', 'inventory', 'quantity', 'units'
         ]
         read_only_fields = ['category_name']
