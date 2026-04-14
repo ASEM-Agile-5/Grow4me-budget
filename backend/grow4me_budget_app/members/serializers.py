@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from .models import User , Accounts  # This is the custom model we created earlier
+from .models import User , Accounts, Role  # This is the custom model we created earlier
 from django.utils import timezone
 from django.db import transaction
 from django.contrib.auth import authenticate
@@ -77,11 +77,13 @@ class RegisterSerializer(serializers.ModelSerializer):
             )
 
             # 3. Create the Profile (the 'Account Details') linked to that user
+            user_role = Role.objects.get(name='USER')
             Accounts.objects.create(
                 user=user,
                 first_name=first_name,
                 last_name=last_name,
                 username= username,
+                role=user_role,
                 terms_agreed_at=timezone.now()
             )
         return user
@@ -114,12 +116,11 @@ class LoginSerializer(serializers.Serializer):
         return data
 
 
-class UserSerializer(serializers.ModelSerializer):
-    
+    role = serializers.CharField(source='role.name', read_only=True)
 
     class Meta:
         model = Accounts
-        fields = ['user_id', 'first_name', 'last_name', 'username']
+        fields = ['user_id', 'first_name', 'last_name', 'username', 'role']
     # balance = serializers.SerializerMethodField(source='get_balance')
     # interest_gained = serializers.SerializerMethodField(source='get_interest_gained')
 
