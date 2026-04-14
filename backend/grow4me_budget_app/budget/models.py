@@ -1,6 +1,7 @@
 import uuid
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from project.models import Projects
 
 
@@ -8,6 +9,7 @@ class BudgetCategory(models.Model):
     """Globally shared budget categories (not user-scoped)."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     category_name = models.CharField(max_length=255, unique=True)
+    description = models.TextField(blank=True, default='')
 
     class Meta:
         verbose_name_plural = "Budget Categories"
@@ -34,6 +36,7 @@ class BudgetItem(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     budget = models.ForeignKey(Budget, on_delete=models.CASCADE, related_name='items')
     category = models.ForeignKey(BudgetCategory, on_delete=models.CASCADE, related_name='budget_items')
+    description = models.TextField(blank=True, default='')
     category_name = models.CharField(max_length=255, blank=True, null=True)
     planned_amount = models.DecimalField(max_digits=12, decimal_places=2)
     inventory = models.BooleanField(default=False)
@@ -120,11 +123,11 @@ class Sale(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     budget = models.ForeignKey(Budget, on_delete=models.CASCADE, related_name='sales')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sales')
-    product = models.CharField(max_length=255)
+    product = models.CharField(max_length=255, default='Unknown')
     quantity = models.IntegerField(default=1)
-    price_per_unit = models.DecimalField(max_digits=12, decimal_places=2)
+    price_per_unit = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, editable=False)
-    date = models.DateField()
+    date = models.DateField(default=timezone.now)
     buyer = models.CharField(max_length=255, blank=True, default='')
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='paid')
     
@@ -136,3 +139,15 @@ class Sale(models.Model):
 
     def __str__(self):
         return f"Sale on {self.date} - {self.total_amount}"
+
+
+class Template(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255, default='Untitled Template')
+    description = models.TextField(blank=True, default='')
+    icon = models.CharField(max_length=50, blank=True, default='')
+    budget_items = models.JSONField(default=list)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name

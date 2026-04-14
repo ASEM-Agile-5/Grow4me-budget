@@ -7,8 +7,10 @@ from .views import (
     BudgetCategoryListView,
     CreateBudgetCategoryView,
     CreateBudgetItemView,
+    BulkCreateBudgetItemView,
     ExpenseListView,
     CreateExpenseView,
+    BulkCreateExpenseView,
     CreateInventoryItemView,
     InventoryListView,
     EditInventoryView,
@@ -17,9 +19,14 @@ from .views import (
     InventoryHistoryView,
     SaleListView,
     CreateSaleView,
+    BulkCreateSaleView,
     DashboardSummaryView,
     MonthlyExpensesView,
     CategoryExpensesView,
+    BudgetAIParseView,
+    BudgetTemplateView,
+    BulkCreateBudgetTemplateView,
+    BudgetFinancialMetricsView,
 )
 
 urlpatterns = [
@@ -34,10 +41,12 @@ urlpatterns = [
 
     # Budget Items
     path('items/create', CreateBudgetItemView.as_view()),
+    path('items/bulk-create', BulkCreateBudgetItemView.as_view()),
 
     # Expenses
     path('expenses', ExpenseListView.as_view()),
     path('expenses/create', CreateExpenseView.as_view()),
+    path('expenses/bulk-create', BulkCreateExpenseView.as_view()),
     path('<uuid:budget_id>/recent-expenses', RecentExpensesView.as_view()),
 
     # Inventory
@@ -51,9 +60,18 @@ urlpatterns = [
     # Sales
     path('sales', SaleListView.as_view()),
     path('sales/create', CreateSaleView.as_view()),
+    path('sales/bulk-create', BulkCreateSaleView.as_view()),
 
     # Dashboards
     path('dashboard/summary', DashboardSummaryView.as_view()),
     path('dashboard/monthly-expenses', MonthlyExpensesView.as_view()),
     path('dashboard/category-expenses', CategoryExpensesView.as_view()),
+    path('dashboard/financials', BudgetFinancialMetricsView.as_view()),
+
+    # AI Translation
+    path('ai-translate', BudgetAIParseView.as_view()),
+
+    # Templates
+    path('templates', BudgetTemplateView.as_view()),
+    path('templates/bulk-create', BulkCreateBudgetTemplateView.as_view()),
 ]

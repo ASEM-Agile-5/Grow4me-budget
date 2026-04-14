@@ -35,6 +35,9 @@ Create a new budget for a specific project and year.
   }
   ```
 
+- **Note**: Every new budget automatically comes with a pre-installed budget item named **'Misc'** with a planned amount of `0.00`.
+
+
 ### List All Budgets
 
 Get a list of all budgets belonging to the authenticated user.
@@ -105,7 +108,8 @@ Add a new global budget category.
 - **Payload**:
   ```json
   {
-    "category_name": "Logistics"
+    "category_name": "Logistics",
+    "description": "Transport and shipping costs."
   }
   ```
 - **Response (201 Created)**:
@@ -131,11 +135,57 @@ Add a specific line item (category + planned amount) to an existing budget.
     "budget": "budget-uuid",
     "category": "category-uuid",
     "planned_amount": 1500.0,
+    "description": "High-quality fertilizer for maize.",
     "inventory": true,
     "quantity": 10,
     "units": "bags"
   }
   ```
+- **Note**: If `description` is not provided in the payload, it defaults to the linked Category's description.
+
+### Bulk Add Budget Items
+
+Add multiple line items in a single request.
+
+- **Endpoint**: `POST /budget/items/bulk-create`
+- **Payload Mode A: Simple List**: An array of budget item objects.
+  ```json
+  [
+    {
+      "budget": "uuid-1",
+      "category": "uuid-a",
+      "planned_amount": 500.0,
+      "description": "Item 1"
+    },
+    {
+      "budget": "uuid-1",
+      "category": "uuid-b",
+      "planned_amount": 1200.0,
+      "inventory": true,
+      "quantity": 5
+    }
+  ]
+  ```
+
+- **Payload Mode B: Budget + Items**: A dictionary with `create: true` to create a new budget first.
+  ```json
+  {
+    "create": true,
+    "name": "New Budget Name",
+    "year": 2026,
+    "project": "project-uuid",
+    "description": "Budget description",
+    "budget_items": [
+      {
+        "category": "uuid-a",
+        "planned_amount": 500.0,
+        "description": "Item 1"
+      }
+    ]
+  }
+  ```
+
+- **Note**: The entire operation (Budget + all Items) is wrapped in a database transaction. If any part fails, no data is saved.
 - **Note**: Setting `inventory: true` automatically creates an entry in the Inventory system for this item.
 
 ---
@@ -158,6 +208,14 @@ Record an expense against a budget item.
   }
   ```
 - **Note**: If the budget item is inventory-tracked, this will automatically add/remove stock based on the quantity.
+
+### Bulk Add Expenses
+
+Record multiple expenses in a single request.
+
+- **Endpoint**: `POST /budget/expenses/bulk-create`
+- **Payload**: An array of expense objects.
+
 
 ### List All Expenses
 
@@ -190,6 +248,7 @@ Get the 5 most recent expenses for a specific budget.
 ## 5. Inventory Management
 
 ### List Inventory
+
 
 View all inventory-tracked items and their current stock levels.
 
@@ -252,6 +311,31 @@ Get summary metrics for all inventory items.
   }
   ```
 
+### Inventory History
+
+Get a chronological list of all inventory movements.
+
+- **Endpoint**: `GET /budget/inventory/history`
+- **Query Params**: `?year=2026&project=<project_id>` (Optional)
+- **Response (200 OK)**:
+  ```json
+  [
+    {
+      "id": "movement-uuid",
+      "budget_item_name": "Fertilizer",
+      "action": "remove_stock",
+      "quantity": 2,
+      "notes": "Used for maize block A",
+      "user": {
+        "id": "user-uuid",
+        "name": "John Farmer"
+      },
+      "created_at": "2026-04-12T14:30:00Z"
+    }
+  ]
+  ```
+
+
 ---
 
 ## 6. Sales
@@ -272,6 +356,14 @@ Record revenue from selling products and optionally deduct the sold quantity fro
   }
   ```
 - **Note**: The `total_amount` is automatically calculated (`quantity` * `price_per_unit`). If `budget_item` is inventory-tracked, it automatically triggers an `InventoryMovement` to remove stock.
+
+### Bulk Add Sales
+
+Record multiple sales in a single request.
+
+- **Endpoint**: `POST /budget/sales/bulk-create`
+- **Payload**: An array of sale objects.
+
 
 ### List Sales
 Retrieve a list of all sales for the authenticated user.
@@ -312,24 +404,19 @@ Get high-level aggregation for a given year.
   ```
 
 ### Monthly Expenses
-Get expenses broken down by month for a given year.
+Get expenses broken down by month for a given year or specific budget.
 
-- **Endpoint**: `GET /budget/dashboard/monthly-expenses?year=2026`
+- **Endpoint**: `GET /budget/dashboard/monthly-expenses`
+- **Query Params**:
+  - `year=2026`: (Optional) Scope expenses to a specific year.
+  - `budget=<budget_uuid>`: (Optional) Scope expenses to a specific budget.
 - **Response (200 OK)**:
   ```json
   {
     "Jan": 3400.50,
     "Feb": 5500.00,
     "Mar": 0,
-    "Apr": 0,
-    "May": 0,
-    "Jun": 0,
-    "Jul": 0,
-    "Aug": 0,
-    "Sep": 0,
-    "Oct": 0,
-    "Nov": 0,
-    "Dec": 0
+    ...
   }
   ```
 
@@ -346,3 +433,125 @@ Get total expenses per category for a specific budget.
   }
   ```
 
+### Financial Performance & Metrics
+Get advanced KPIs and data for charts (Profit over time, Budget vs Actual).
+
+- **Endpoint**: `GET /budget/dashboard/financials`
+- **Query Params**: 
+  - `year=2026`: (Required if `budget` is not provided) Scope metrics to a specific year.
+  - `budget=<budget_uuid>`: (Required if `year` is not provided) Scope metrics to a specific budget.
+- **Response (200 OK)**:
+  ```json
+  {
+    "summary": {
+      "netProfit": 15000.0,
+      "budgetUtilization": 75.5,
+      "revenuePerExpense": 2.5,
+      "roi": 150.0,
+      "totalBudget": 50000.0,
+      "totalRevenue": 25000.0,
+      "totalExpenses": 10000.0
+    },
+    "profitLossOverTime": [
+       { "month": "Mar", "revenue": 0, "expenses": 5700, "profit": -5700 },
+       { "month": "Jul", "revenue": 16300, "expenses": 600, "profit": 15700 }
+    ],
+    "budgetVsActual": [
+       { "category": "Labor", "budgeted": 5000, "actual": 4500 },
+       { "category": "Materials", "budgeted": 2000, "actual": 2200 }
+    ],
+    "expenseBreakdown": {
+       "Labor": 4500,
+       "Materials": 2200
+    }
+  }
+  ```
+
+---
+
+## 8. AI Budget Translator
+
+### AI-Translate
+
+Automatically convert unstructured text, PDFs, or CSV files into structured budget items using Gemini.
+
+- **Endpoint**: `POST /budget/ai-translate`
+- **Payload (Form-Data)**:
+  - `text`: (Optional) Natural language description of the budget.
+  - `file`: (Optional) PDF extract or CSV file.
+- **Rules**:
+  - Automatically maps to existing database categories.
+  - Falls back to the **'Other'** category if no match is found.
+  - Validates CSV headers requirements: `category_name`, `planned_amount`, `description`.
+- **Response (200 OK)**:
+  ```json
+  [
+    {
+      "category_id": "uuid-1",
+      "category_name": "Labor",
+      "planned_amount": "5000.00",
+      "description": "Payment for harvesting team"
+    },
+    {
+      "category_id": "uuid-other",
+      "category_name": "Other",
+      "planned_amount": "250.00",
+      "description": "Repairs for broken irrigation pipe"
+    }
+  ]
+  ```
+
+
+---
+
+## 9. Budget Templates
+
+### List Templates
+
+Get a list of all pre-defined budget templates.
+
+- **Endpoint**: `GET /budget/templates`
+- **Response (200 OK)**:
+  ```json
+  [
+    {
+      "id": "uuid-1",
+      "name": "Maize Farming Template",
+      "description": "Standard setup for 1 hectare of maize",
+      "icon": "leaf",
+      "budget_items": [
+        {
+           "category_name": "Labor",
+           "planned_amount": 2000,
+           "description": "Standard labor cost"
+        }
+      ]
+    }
+  ]
+  ```
+
+### Bulk Create Templates
+
+Add multiple templates to the shared library.
+
+- **Endpoint**: `POST /budget/templates/bulk-create`
+- **Payload**:
+  ```json
+  {
+    "templates": [
+      {
+        "name": "Poultry Template",
+        "description": "Cycle for 1000 birds",
+        "icon": "egg",
+        "budget_items": [...]
+      }
+    ]
+  }
+  ```
+- **Response (201 Created)**:
+  ```json
+  {
+    "message": "Templates created successfully",
+    "template_ids": ["uuid-1", "uuid-2"]
+  }
+  ```

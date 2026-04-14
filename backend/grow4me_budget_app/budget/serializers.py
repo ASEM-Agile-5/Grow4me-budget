@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.db.models import Sum, Case, When, Value, F, IntegerField
 from decimal import Decimal
-from .models import Budget, BudgetCategory, BudgetItem, Expense, InventoryMovement, InventoryItem, Sale
+from .models import Budget, BudgetCategory, BudgetItem, Expense, InventoryMovement, InventoryItem, Sale, Template
 
 
 class CreateBudgetSerializer(serializers.ModelSerializer):
@@ -51,7 +51,6 @@ class BudgetDetailSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'year', 'description', 'total_planned', 'total_spent', 'variance', 'budget_items']
 
     def get_budget_items(self, obj):
-        from .serializers import CreateBudgetItemSerializer
         budget_items = BudgetItem.objects.filter(budget=obj)
         return CreateBudgetItemSerializer(budget_items, many=True).data
 
@@ -75,8 +74,15 @@ class BudgetCategorySerializer(serializers.ModelSerializer):
     """GET/POST for globally shared categories."""
     class Meta:
         model = BudgetCategory
-        fields = ['id', 'category_name']
-        read_only_fields = ['id']
+        fields = ['id', 'category_name', 'description']
+        read_only_fields = ['id', 'created_at']
+
+
+class BudgetTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Template
+        fields = ['id', 'name', 'description', 'icon', 'budget_items', 'created_at']
+        read_only_fields = ['id', 'created_at']
 
 
 class CreateBudgetItemSerializer(serializers.ModelSerializer):
@@ -92,7 +98,7 @@ class CreateBudgetItemSerializer(serializers.ModelSerializer):
         model = BudgetItem
         fields = [
             'id', 'budget', 'category', 'category_id', 'planned_amount', 'spent',
-            'category_name', 'inventory', 'quantity', 'units'
+            'category_name', 'inventory', 'quantity', 'units', 'description'
         ]
         read_only_fields = ['category_name']
 
