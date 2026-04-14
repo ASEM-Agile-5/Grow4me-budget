@@ -83,6 +83,18 @@ Get detailed information about a budget, including all line items and aggregates
   }
   ```
 
+### Delete Budget
+
+Permanently delete a budget and all its associated line items and expenses.
+
+- **Endpoint**: `DELETE /budget/delete/<budget_id>`
+- **Response (204 No Content)**:
+  ```json
+  {
+    "message": "Budget and all related items deleted successfully"
+  }
+  ```
+
 ---
 
 ## 2. Categories
@@ -187,6 +199,18 @@ Add multiple line items in a single request.
 
 - **Note**: The entire operation (Budget + all Items) is wrapped in a database transaction. If any part fails, no data is saved.
 - **Note**: Setting `inventory: true` automatically creates an entry in the Inventory system for this item.
+
+### Delete Budget Item
+
+Permanently remove a budget item. This will also delete related inventory records, while setting the `budget_item` field to NULL in any associated expenses to preserve history.
+
+- **Endpoint**: `DELETE /budget/items/delete/<item_uuid>`
+- **Response (204 No Content)**:
+  ```json
+  {
+    "message": "Budget item deleted successfully"
+  }
+  ```
 
 ---
 

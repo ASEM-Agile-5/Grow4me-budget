@@ -97,6 +97,39 @@ class CreateBudgetView(views.APIView):
             )
 
 
+class DeleteBudgetView(views.APIView):
+    """DELETE /budget/delete/<uuid:budget_id> — Remove a budget and all its items."""
+
+    def delete(self, request, budget_id):
+        user, error_response = get_authenticated_user(request)
+        if error_response:
+            return error_response
+
+        try:
+            with transaction.atomic():
+                # Ensure the budget exists and belongs to the user
+                budget = Budget.objects.get(id=budget_id, user=user)
+                
+                # Explicitly delete all related budget items first as requested
+                budget.items.all().delete()
+                
+                # Now delete the budget
+                budget.delete()
+
+            return Response({
+                "message": "Budget and all related items deleted successfully"
+            }, status=status.HTTP_204_NO_CONTENT)
+
+        except Budget.DoesNotExist:
+            return Response({"error": "Budget not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            traceback.print_exc()
+            return Response(
+                {"error": str(e), "type": type(e).__name__},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
 class BudgetListView(views.APIView):
     """GET /budget/all — List all budgets for the authenticated user."""
 
@@ -333,6 +366,33 @@ class BulkCreateBudgetItemView(views.APIView):
                 
             return Response(response_data, status=status.HTTP_201_CREATED)
 
+        except Exception as e:
+            traceback.print_exc()
+            return Response(
+                {"error": str(e), "type": type(e).__name__},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class DeleteBudgetItemView(views.APIView):
+    """DELETE /budget/items/delete/<uuid:item_id> — Remove a line-item from a budget."""
+
+    def delete(self, request, item_id):
+        user, error_response = get_authenticated_user(request)
+        if error_response:
+            return error_response
+
+        try:
+            # Ensure the budget item exists and belongs to the user
+            budget_item = BudgetItem.objects.get(id=item_id, budget__user=user)
+            budget_item.delete()
+
+            return Response({
+                "message": "Budget item deleted successfully"
+            }, status=status.HTTP_204_NO_CONTENT)
+
+        except BudgetItem.DoesNotExist:
+            return Response({"error": "Budget item not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             traceback.print_exc()
             return Response(

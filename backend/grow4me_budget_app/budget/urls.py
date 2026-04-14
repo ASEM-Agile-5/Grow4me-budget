@@ -3,11 +3,13 @@ from .views import (
     CreateBudgetView,
     BudgetListView,
     BudgetDetailView,
+    DeleteBudgetView,
     RecentExpensesView,
     BudgetCategoryListView,
     CreateBudgetCategoryView,
     CreateBudgetItemView,
     BulkCreateBudgetItemView,
+    DeleteBudgetItemView,
     ExpenseListView,
     CreateExpenseView,
     BulkCreateExpenseView,
@@ -33,6 +35,7 @@ urlpatterns = [
     # Budgets
     path('create', CreateBudgetView.as_view()),
     path('all', BudgetListView.as_view()),
+    path('delete/<uuid:budget_id>', DeleteBudgetView.as_view()),
     path('details/<uuid:budget_id>', BudgetDetailView.as_view()),
 
     # Budget Categories
@@ -42,6 +45,7 @@ urlpatterns = [
     # Budget Items
     path('items/create', CreateBudgetItemView.as_view()),
     path('items/bulk-create', BulkCreateBudgetItemView.as_view()),
+    path('items/delete/<uuid:item_id>', DeleteBudgetItemView.as_view()),
 
     # Expenses
     path('expenses', ExpenseListView.as_view()),
