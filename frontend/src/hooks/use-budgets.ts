@@ -18,7 +18,11 @@ import {
   getCategoryExpensesAPI,
   getSalesAPI,
   createSaleAPI,
-  getInventoryHistoryAPI
+  getInventoryHistoryAPI,
+  bulkCreateBudgetItemsAPI,
+  aiTranslateBudgetAPI,
+  getBudgetTemplatesAPI,
+  getFinancialsAPI,
 } from "@/services/services";
 import { useState, useEffect } from "react";
 
@@ -164,6 +168,13 @@ export const useProjects = () => {
   });
 };
 
+export const useBudgetTemplates = () => {
+  return useQuery({
+    queryKey: ["budget-templates"],
+    queryFn: getBudgetTemplatesAPI,
+  });
+};
+
 export const useDashboardSummary = (year: number | string) => {
   return useQuery({
     queryKey: ["dashboard-summary", year],
@@ -172,10 +183,10 @@ export const useDashboardSummary = (year: number | string) => {
   });
 };
 
-export const useMonthlyExpenses = (year: number | string) => {
+export const useMonthlyExpenses = (year: number | string, budgetId?: string) => {
   return useQuery({
-    queryKey: ["monthly-expenses", year],
-    queryFn: () => getMonthlyExpensesAPI(year),
+    queryKey: ["monthly-expenses", year, budgetId],
+    queryFn: () => getMonthlyExpensesAPI(year, budgetId),
     enabled: !!year,
   });
 };
@@ -185,6 +196,14 @@ export const useCategoryExpenses = (budgetId: string | null) => {
     queryKey: ["category-expenses", budgetId],
     queryFn: () => getCategoryExpensesAPI(budgetId!),
     enabled: !!budgetId,
+  });
+};
+
+export const useFinancials = (year: number | string, budgetId?: string) => {
+  return useQuery({
+    queryKey: ["financials", year, budgetId],
+    queryFn: () => getFinancialsAPI(year, budgetId),
+    enabled: !!year,
   });
 };
 
@@ -273,5 +292,23 @@ export const useCreateSale = () => {
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
+  });
+};
+
+export const useBulkCreateBudgetItems = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: bulkCreateBudgetItemsAPI,
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["budget-details"] });
+      queryClient.invalidateQueries({ queryKey: ["budgets"] });
+    },
+  });
+};
+
+export const useAITranslateBudget = () => {
+  return useMutation({
+    mutationFn: ({ text, file }: { text?: string; file?: File }) =>
+      aiTranslateBudgetAPI(text, file),
   });
 };

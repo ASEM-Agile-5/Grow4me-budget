@@ -3,7 +3,9 @@ import axios from "axios";
 import { MenuItem, Vendor } from "../models/vendors";
 
 const api = axios.create({
-  baseURL: "http://127.0.0.1:8000/",
+  baseURL:
+    import.meta.env.VITE_API_BASE_URL ||
+    "https://grow4me-backend-213305484430.us-central1.run.app/",
   withCredentials: true,
 });
 
@@ -15,7 +17,8 @@ export const setCookie = (name: string, value: string, days?: number) => {
     date.setTime(date.getTime() + days * 24 * 60 * 60 * 1000);
     expires = "; expires=" + date.toUTCString();
   }
-  document.cookie = name + "=" + (value || "") + expires + "; path=/; SameSite=Lax";
+  document.cookie =
+    name + "=" + (value || "") + expires + "; path=/; SameSite=Lax";
 };
 
 export const getCookie = (name: string) => {
@@ -34,7 +37,7 @@ api.interceptors.request.use(
   (config) => {
     const token = getCookie("access_token");
     if (token) {
-      // Browsers handle "Cookie" headers automatically, but for JWTs, 
+      // Browsers handle "Cookie" headers automatically, but for JWTs,
       // the Authorization header is more reliable in cross-origin scenarios.
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -42,7 +45,7 @@ api.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 export const getDashboardStatsAPI = async () => {
@@ -189,85 +192,6 @@ export const deleteVendorMenuAPI = async (id: string) => {
     throw error;
   }
 };
-export const editVendorMenuAPI = async (id: string, menu: MenuItem) => {
-  try {
-    const response = await api.put(`vendors/menu/update/${id}`, menu);
-    return response.data;
-  } catch (error: any) {
-    console.error(error);
-    if (error.response?.status === 401) {
-      return { status: 401, message: "Unauthorized - Invalid credentials" };
-    }
-    throw error;
-  }
-};
-export const addVendorMenuAPI = async (menu: MenuItem) => {
-  try {
-    const response = await api.post("vendors/menu/create", menu);
-    return response.data;
-  } catch (error: any) {
-    console.error(error);
-    if (error.response?.status === 401) {
-      return { status: 401, message: "Unauthorized - Invalid credentials" };
-    }
-    throw error;
-  }
-};
-export const addVendorAPI = async (vendor: Vendor) => {
-  try {
-    const response = await api.post("vendors/register", vendor);
-
-    return response.data;
-  } catch (error: any) {
-    console.error(error);
-    if (error.response?.status === 401) {
-      return { status: 401, message: "Unauthorized - Invalid credentials" };
-    }
-    throw error;
-  }
-};
-
-export const getOrdersAPI = async () => {
-  try {
-    const response = await api.get("order/all");
-    // console.log(response.data)
-    return response.data;
-  } catch (error) {
-    console.log(error);
-  }
-};
-
-export const getOrderDetailsAPI = async (orderId: string) => {
-  try {
-    const response = await api.get("order/details", {
-      params: { order_id: orderId },
-    });
-    return response.data;
-  } catch (error: any) {
-    console.error(error);
-    if (error.response?.status === 401) {
-      return { status: 401, message: "Unauthorized - Invalid credentials" };
-    }
-    throw error;
-  }
-};
-
-export const updateOrderDeliveryAPI = async (order: {
-  order_id: string;
-  status?: string;
-  assigned_drone?: string | null;
-}) => {
-  try {
-    const response = await api.post("order/set-status", order);
-    return response.data;
-  } catch (error: any) {
-    console.error(error);
-    if (error.response?.status === 401) {
-      return { status: 401, message: "Unauthorized - Invalid credentials" };
-    }
-    throw error;
-  }
-};
 
 export const getProjectsDetailsAPI = async (id: string) => {
   const token = localStorage.getItem("token");
@@ -303,7 +227,10 @@ export const loginAPI = async (email: string, password: string) => {
     });
 
     // Check if there's a token in the response body to store manually
-    const token = response.data?.access_token || response.data?.token || response.data?.acces_token;
+    const token =
+      response.data?.access_token ||
+      response.data?.token ||
+      response.data?.acces_token;
     if (token) {
       setCookie("access_token", token, 7); // Store for 7 days
     }
@@ -410,6 +337,44 @@ export const createExpenseAPI = async (data: {
   }
 };
 
+export const bulkCreateBudgetItemsAPI = async (data: any) => {
+  try {
+    const response = await api.post("budget/items/bulk-create", data);
+    return response.data;
+  } catch (error: any) {
+    console.error("Failed to bulk create budget items:", error);
+    throw error;
+  }
+};
+
+export const aiTranslateBudgetAPI = async (text?: string, file?: File) => {
+  try {
+    const formData = new FormData();
+    if (text) formData.append("text", text);
+    if (file) formData.append("file", file);
+
+    const response = await api.post("budget/ai-translate", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Failed to AI translate budget:", error);
+    throw error;
+  }
+};
+
+export const getBudgetTemplatesAPI = async () => {
+  try {
+    const response = await api.get("budget/templates");
+    return response.data;
+  } catch (error: any) {
+    console.error("Failed to fetch budget templates:", error);
+    throw error;
+  }
+};
+
 export const getExpensesAPI = async () => {
   try {
     const response = await api.get("budget/expenses");
@@ -492,10 +457,13 @@ export const getDashboardSummaryAPI = async (year: number | string) => {
   }
 };
 
-export const getMonthlyExpensesAPI = async (year: number | string) => {
+export const getMonthlyExpensesAPI = async (
+  year: number | string,
+  budgetId?: string,
+) => {
   try {
     const response = await api.get("budget/dashboard/monthly-expenses", {
-      params: { year },
+      params: { year, budget: budgetId },
     });
     return response.data;
   } catch (error: any) {
@@ -540,6 +508,21 @@ export const createSaleAPI = async (data: {
     return response.data;
   } catch (error: any) {
     console.error("Failed to create sale:", error);
+    throw error;
+  }
+};
+
+export const getFinancialsAPI = async (
+  year: number | string,
+  budgetId?: string,
+) => {
+  try {
+    const response = await api.get("budget/dashboard/financials", {
+      params: { year, budget: budgetId },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Failed to fetch financials:", error);
     throw error;
   }
 };

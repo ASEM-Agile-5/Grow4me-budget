@@ -56,8 +56,10 @@ const Inventory = () => {
     isLoading: inventoryLoading,
     error: inventoryError,
   } = useInventory();
-  const { data: inventoryHistory = [], isLoading: historyLoading } =
-    useInventoryHistory();
+  const {
+    data: inventoryHistory = [],
+    isLoading: historyLoading,
+  } = useInventoryHistory();
   const adjustStockMutation = useAdjustInventory();
   const setMinimumMutation = useSetInventoryMin();
 
@@ -144,10 +146,7 @@ const Inventory = () => {
       setAdjustType("added");
     } catch (err: any) {
       console.error("Failed to adjust stock:", err);
-      toast.error(
-        err?.response?.data?.message ||
-          "Failed to adjust stock. Please try again.",
-      );
+      toast.error(err?.response?.data?.message || "Failed to adjust stock. Please try again.");
     } finally {
       setIsUpdating(false);
     }
@@ -165,9 +164,7 @@ const Inventory = () => {
       setEditMinValue("");
     } catch (err: any) {
       console.error("Failed to update min stock:", err);
-      toast.error(
-        err?.response?.data?.message || "Failed to update min stock level.",
-      );
+      toast.error(err?.response?.data?.message || "Failed to update min stock level.");
     } finally {
       setIsUpdating(false);
     }
@@ -447,10 +444,7 @@ const Inventory = () => {
                   const isAdd = h.action === "add_stock";
                   const isReduce = h.action === "remove_stock";
                   return (
-                    <tr
-                      key={h.id}
-                      className="border-b last:border-0 hover:bg-muted/50 transition-colors"
-                    >
+                    <tr key={h.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
                       <td className="py-3 text-muted-foreground">
                         {new Date(h.created_at).toLocaleDateString()}
                       </td>
@@ -486,17 +480,12 @@ const Inventory = () => {
                       <td className="py-3 text-muted-foreground">
                         {h.user?.name || "System"}
                       </td>
-                      <td className="py-3 text-muted-foreground">
-                        {h.notes || "—"}
-                      </td>
-                      <td
-                        className={`py-3 text-right font-medium ${isAdd ? "text-success" : isReduce ? "text-destructive" : ""}`}
-                      >
-                        {isAdd ? "+" : isReduce ? "-" : ""}
-                        {h.quantity}
+                      <td className="py-3 text-muted-foreground">{h.notes || "—"}</td>
+                      <td className={`py-3 text-right font-medium ${isAdd ? "text-success" : isReduce ? "text-destructive" : ""}`}>
+                        {isAdd ? "+" : isReduce ? "-" : ""}{h.quantity}
                       </td>
                     </tr>
-                  );
+                  )
                 })}
               </tbody>
             </table>
@@ -572,9 +561,7 @@ const Inventory = () => {
                   />
                 </div>
                 <div>
-                  <Label>
-                    Notes <span className="text-destructive">*</span>
-                  </Label>
+                  <Label>Notes <span className="text-destructive">*</span></Label>
                   <Textarea
                     id="adjust-notes"
                     value={adjustNotes}
@@ -730,17 +717,12 @@ const Inventory = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              You are about to permanently alter the inventory count for this
-              unit. You will be unable to make changes to the details of this
-              item log afterwards. Are you sure you want to finalize this
-              transaction?
+              You are about to permanently alter the inventory count for this unit. You will be unable to make changes to the details of this item log afterwards. Are you sure you want to finalize this transaction?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleAdjust}>
-              Confirm
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleAdjust}>Continue</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

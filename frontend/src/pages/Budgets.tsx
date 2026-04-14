@@ -7,6 +7,7 @@ import {
   FolderOpen,
   Calendar,
   ArrowRight,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -144,8 +145,6 @@ const Budgets = () => {
     navigate(`/budgets/${budget.id}`);
   };
 
-
-
   if (loading && budgets.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
@@ -178,10 +177,13 @@ const Budgets = () => {
             }}
           >
             <DialogTrigger asChild>
-              <Button id="create-budget-btn">
+              <Button id="create-budget-btn" variant="outline">
                 <Plus className="mr-2 h-4 w-4" /> New Budget
               </Button>
             </DialogTrigger>
+            <Button onClick={() => navigate("/budgets/create")}>
+              <FileText className="mr-2 h-4 w-4" /> Templates
+            </Button>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>
@@ -412,7 +414,7 @@ const Budgets = () => {
                     />
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-1 text-right">
-                    {pct.toFixed(0)}% used
+                    {pct.toFixed(2)}% used
                   </p>
                 </div>
 
@@ -431,12 +433,16 @@ const Budgets = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete this budget and all its associated data.
+              This action cannot be undone. This will permanently delete this
+              budget and all its associated data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Delete Configuration
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { TrendingUp, TrendingDown, BarChart3 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,81 +17,46 @@ const CATEGORY_COLORS = [
   "hsl(60, 60%, 45%)",
 ];
 
-import { useBudgets, useSelectedBudget, useExpenses, useRevenues, useBudgetDetails } from "@/hooks/use-budgets";
+import { useBudgets, useSelectedBudget, useFinancials } from "@/hooks/use-budgets";
+
+const currentYearStr = new Date().getFullYear().toString();
+const yearOptions = Array.from({ length: 5 }, (_, i) => (parseInt(currentYearStr) - 2 + i).toString());
 
 const Reports = () => {
-  const { data: budgets = [], isLoading: budgetsLoading, error: budgetsError, refetch: refetchBudgets } = useBudgets();
+  const [selectedYear, setSelectedYear] = useState(currentYearStr);
+  const { data: budgets = [], isLoading: budgetsLoading, refetch: refetchBudgets } = useBudgets();
   const { selectedBudgetId, setSelectedBudgetId } = useSelectedBudget();
-  const { data: allExpenses = [], isLoading: expensesLoading } = useExpenses();
-  const { data: allRevenues = [], isLoading: revenuesLoading } = useRevenues();
-  const { data: selectedBudgetDetails, isLoading: detailsLoading } = useBudgetDetails(selectedBudgetId);
+  const { data: financials, isLoading: financialsLoading, error: financialsError } = useFinancials(selectedYear, selectedBudgetId || undefined);
+
+  const loading = budgetsLoading || financialsLoading;
+  const error = financialsError ? "Failed to load financial reports" : null;
+
+  // Use API data for calculations or fallbacks
+  const summary = financials?.summary || {};
+  const netProfit = summary.netProfit || 0;
+  const totalExpenses = summary.totalExpenses || 0;
+  const totalRevenue = summary.totalRevenue || 0;
+  const totalBudget = summary.totalBudget || 0;
+  const budgetUtilization = summary.budgetUtilization ? (summary.budgetUtilization * 100).toFixed(1) : "0.0";
+  const revenuePerExpense = summary.revenuePerExpense || 0;
+
+  // Charts
+  const profitData = financials?.profitLossOverTime || [];
+  const budgetVsActual = financials?.budgetVsActual || [];
+  
+  const categoryExpenseData = useMemo(() => {
+    if (!financials?.expenseBreakdown) return [];
+    return Object.entries(financials.expenseBreakdown).map(([name, value], i) => ({
+      name,
+      value: value as number,
+      fill: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+    }));
+  }, [financials]);
 
   const selectedBudget = useMemo(() => 
     budgets.find((b: any) => b.id.toString() === selectedBudgetId?.toString()),
     [budgets, selectedBudgetId]
   );
-
-  const budgetItemsForSelected = selectedBudgetDetails?.budget_items || [];
-  
-  const expensesForSelected = useMemo(() => 
-    allExpenses.filter((e: any) => e.budgetId?.toString() === selectedBudgetId?.toString()),
-    [allExpenses, selectedBudgetId]
-  );
-
-  const revenuesForSelected = useMemo(() => 
-    allRevenues.filter((r: any) => r.budgetId?.toString() === selectedBudgetId?.toString()),
-    [allRevenues, selectedBudgetId]
-  );
-
-  const loading = budgetsLoading || expensesLoading || revenuesLoading || (!!selectedBudgetId && detailsLoading);
-  const error = budgetsError ? "Failed to load reports" : null;
-
-  const totalExpenses = expensesForSelected.reduce((s, e) => s + e.amount, 0);
-  const totalRevenue = revenuesForSelected.reduce((s, r) => s + r.total, 0);
-  const netProfit = totalRevenue - totalExpenses;
-  const totalBudget = budgetItemsForSelected.reduce((s, b) => s + b.planned, 0);
-  const budgetUtilization = totalBudget > 0 ? ((totalExpenses / totalBudget) * 100).toFixed(1) : "0.0";
-
-  // Profit over time
-  const profitData = useMemo(() => {
-    const months: Record<string, { revenue: number; expenses: number }> = {};
-    expensesForSelected.forEach((e) => {
-      const key = new Date(e.date).toLocaleString("default", { month: "short" });
-      if (!months[key]) months[key] = { revenue: 0, expenses: 0 };
-      months[key].expenses += e.amount;
-    });
-    revenuesForSelected.forEach((r) => {
-      const key = new Date(r.date).toLocaleString("default", { month: "short" });
-      if (!months[key]) months[key] = { revenue: 0, expenses: 0 };
-      months[key].revenue += r.total;
-    });
-    return Object.entries(months).map(([month, d]) => ({
-      month,
-      revenue: d.revenue,
-      expenses: d.expenses,
-      profit: d.revenue - d.expenses,
-    }));
-  }, [expensesForSelected, revenuesForSelected]);
-
-  // Budget vs Actual
-  const budgetVsActual = budgetItemsForSelected.map((b) => ({
-    category: b.category,
-    planned: b.planned,
-    actual: b.actual,
-  }));
-
-  // Category expense breakdown
-  const categoryExpenseData = useMemo(() => {
-    const cats: Record<string, number> = {};
-    expensesForSelected.forEach((e) => {
-      cats[e.category] = (cats[e.category] || 0) + e.amount;
-    });
-    return Object.entries(cats).map(([name, value], i) => ({
-      name,
-      value,
-      fill: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
-    }));
-  }, [expensesForSelected]);
 
   if (loading && budgets.length === 0) {
     return (
@@ -108,15 +73,27 @@ const Reports = () => {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
           <p className="text-muted-foreground">
-            Financial analytics for {selectedBudget ? selectedBudget.name : "—"}
+            Financial analytics for the {selectedYear} season
           </p>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={() => refetchBudgets()}>
             Refresh
           </Button>
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Year" />
+            </SelectTrigger>
+            <SelectContent>
+              {yearOptions.map((y) => (
+                <SelectItem key={y} value={y}>
+                  {y}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={(selectedBudgetId || "").toString()} onValueChange={setSelectedBudgetId}>
-            <SelectTrigger className="w-52" id="reports-budget-picker">
+            <SelectTrigger className="w-48" id="reports-budget-picker">
               <SelectValue placeholder="Select budget" />
             </SelectTrigger>
             <SelectContent>
@@ -153,7 +130,7 @@ const Reports = () => {
         />
         <StatCard
           title="Revenue per Expense"
-          value={totalExpenses > 0 ? `${(totalRevenue / totalExpenses).toFixed(2)}x` : "—"}
+          value={revenuePerExpense ? `${revenuePerExpense.toFixed(2)}x` : "—"}
           subtitle="Return on investment"
           icon={TrendingUp}
           variant="success"
@@ -199,7 +176,7 @@ const Reports = () => {
                   contentStyle={{ borderRadius: "0.5rem", border: "1px solid hsl(40, 20%, 88%)", fontSize: 13 }}
                   formatter={(v: number) => `GHS ${v.toLocaleString()}`}
                 />
-                <Bar dataKey="planned" fill="hsl(142, 45%, 28%)" radius={[4, 4, 0, 0]} name="Planned" />
+                <Bar dataKey="budgeted" fill="hsl(142, 45%, 28%)" radius={[4, 4, 0, 0]} name="Budgeted" />
                 <Bar dataKey="actual" fill="hsl(38, 70%, 55%)" radius={[4, 4, 0, 0]} name="Actual" />
               </BarChart>
             </ResponsiveContainer>

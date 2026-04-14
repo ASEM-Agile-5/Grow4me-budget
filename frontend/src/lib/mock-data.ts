@@ -8,6 +8,14 @@ export interface Budget {
 }
 
 export type InventoryUnit = "kg" | "litres" | "lbs" | "bags" | "units" | "crates" | "tonnes";
+export interface Season {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  cropType: string;
+  totalBudget: number;
+}
 
 export interface BudgetItem {
   id: string;
@@ -98,6 +106,12 @@ export const mockBudgets: Budget[] = [
     createdAt: "2026-02-10",
   },
 ];
+
+export const mockSeasons: Season[] = [
+  { id: "1", name: "2026 Maize Season", startDate: "2026-03-01", endDate: "2026-08-31", cropType: "Maize", totalBudget: 15000 },
+  { id: "2", name: "2025 Poultry Cycle", startDate: "2025-09-01", endDate: "2026-02-28", cropType: "Poultry", totalBudget: 8500 },
+];
+
 
 export const mockBudgetItems: BudgetItem[] = [
   // Budget 1 — Maize

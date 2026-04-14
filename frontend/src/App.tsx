@@ -12,6 +12,7 @@ import Expenses from "./pages/Expenses";
 import Inventory from "./pages/Inventory";
 import RevenuePage from "./pages/RevenuePage";
 import Reports from "./pages/Reports";
+import CreateBudget from "./pages/CreateBudget";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import { useEffect } from "react";
@@ -65,6 +66,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Budgets />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/budgets/create"
+              element={
+                <ProtectedRoute>
+                  <CreateBudget />
                 </ProtectedRoute>
               }
             />
