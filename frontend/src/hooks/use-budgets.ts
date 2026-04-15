@@ -23,6 +23,7 @@ import {
   aiTranslateBudgetAPI,
   getBudgetTemplatesAPI,
   getFinancialsAPI,
+  deleteBudgetItemAPI,
 } from "@/services/services";
 import { useState, useEffect } from "react";
 
@@ -310,5 +311,16 @@ export const useAITranslateBudget = () => {
   return useMutation({
     mutationFn: ({ text, file }: { text?: string; file?: File }) =>
       aiTranslateBudgetAPI(text, file),
+  });
+};
+
+export const useDeleteBudgetItem = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteBudgetItemAPI,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["budget-details"] });
+      queryClient.invalidateQueries({ queryKey: ["budgets"] });
+    },
   });
 };

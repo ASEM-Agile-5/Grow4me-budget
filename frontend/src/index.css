@@ -2,10 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 @layer base {
   :root {
+    /* Farm (Light) Theme */
     --background: 40 33% 97%;
     --foreground: 150 25% 12%;
 
@@ -34,7 +35,7 @@
     --input: 40 20% 88%;
     --ring: 142 45% 28%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
     --success: 142 60% 40%;
     --success-foreground: 40 33% 97%;
@@ -50,36 +51,66 @@
     --sidebar-border: 142 20% 25%;
     --sidebar-ring: 38 70% 55%;
     --sidebar-muted: 142 15% 35%;
+
+    /* Chart Colors (Farm) */
+    --chart-1: 142 45% 28%;
+    --chart-2: 38 70% 55%;
+    --chart-3: 28 50% 45%;
+    --chart-4: 142 60% 40%;
+    --chart-5: 0 72% 51%;
   }
 
   .dark {
-    --background: 150 20% 8%;
-    --foreground: 40 25% 92%;
-    --card: 150 18% 12%;
-    --card-foreground: 40 25% 92%;
-    --popover: 150 18% 12%;
-    --popover-foreground: 40 25% 92%;
-    --primary: 142 50% 40%;
-    --primary-foreground: 150 20% 8%;
-    --secondary: 38 70% 55%;
-    --secondary-foreground: 150 20% 8%;
-    --muted: 150 15% 18%;
-    --muted-foreground: 40 15% 60%;
-    --accent: 28 50% 45%;
-    --accent-foreground: 40 25% 92%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 40 25% 92%;
-    --border: 150 15% 20%;
-    --input: 150 15% 20%;
-    --ring: 142 50% 40%;
-    --sidebar-background: 150 25% 6%;
-    --sidebar-foreground: 40 25% 90%;
-    --sidebar-primary: 38 70% 55%;
-    --sidebar-primary-foreground: 150 25% 6%;
-    --sidebar-accent: 150 20% 12%;
-    --sidebar-accent-foreground: 40 25% 90%;
-    --sidebar-border: 150 15% 15%;
-    --sidebar-ring: 38 70% 55%;
+    /* High-Fidelity Finance (Dark) Theme */
+    --background: 230 25% 4%;
+    --foreground: 210 40% 98%;
+
+    --card: 230 25% 7%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 230 25% 7%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 172 80% 45%; /* More Teal-Green */
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 230 15% 12%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 262 83% 58%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 230 15% 10%;
+    --input: 230 15% 10%;
+    --ring: 217 91% 60%;
+
+    --success: 172 80% 45%;
+    --success-foreground: 210 40% 98%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 210 40% 98%;
+
+    --sidebar-background: 230 25% 3%;
+    --sidebar-foreground: 215 20% 65%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 230 20% 10%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 230 15% 8%;
+    --sidebar-ring: 217 91% 60%;
+    --sidebar-muted: 230 15% 20%;
+
+    /* Chart Colors (Finance High-Fidelity) */
+    --chart-1: 217 91% 60%;
+    --chart-2: 172 80% 45%;
+    --chart-3: 262 83% 58%;
+    --chart-4: 0 84.2% 60.2%;
+    --chart-5: 142 71% 45%;
   }
 }
 
@@ -89,24 +120,59 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background text-foreground font-sans antialiased selection:bg-primary/30 selection:text-primary;
+    font-family: 'Outfit', sans-serif;
   }
 }
 
 @layer utilities {
-  .farm-gradient {
-    background: linear-gradient(135deg, hsl(142, 45%, 28%), hsl(142, 35%, 22%));
+  .finance-gradient {
+    background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
   }
 
-  .golden-gradient {
-    background: linear-gradient(135deg, hsl(38, 70%, 55%), hsl(28, 60%, 50%));
+  .finance-card-gradient {
+    background: linear-gradient(135deg, #4f8aff 0%, #15d291 100%);
+  }
+
+  .finance-card-gradient-purple {
+    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+  }
+
+  /* Keep other utilities but ensure they work with themes */
+  .glass {
+    @apply bg-card/40 backdrop-blur-xl border-white/5;
+  }
+
+  .glass-dark {
+    background: rgba(13, 17, 23, 0.7);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .glass-sidebar {
+    @apply bg-background/80 backdrop-blur-2xl border-r border-sidebar-border;
+  }
+
+  @media (min-width: 1024px) {
+    .glass-sidebar {
+      @apply bg-sidebar backdrop-blur-none;
+    }
+  }
+
+  .neon-glow-primary {
+    box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.4);
   }
 
   .stat-card-shadow {
-    box-shadow: 0 1px 3px 0 hsl(150 25% 12% / 0.06), 0 1px 2px -1px hsl(150 25% 12% / 0.06);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+
+  .hero-card-shadow {
+    box-shadow: 0 20px 40px -10px rgba(79, 138, 255, 0.3);
   }
 
   .stat-card-shadow-hover {
-    box-shadow: 0 4px 12px 0 hsl(150 25% 12% / 0.1), 0 2px 4px -2px hsl(150 25% 12% / 0.06);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.05);
+    @apply border-primary/30;
   }
 }

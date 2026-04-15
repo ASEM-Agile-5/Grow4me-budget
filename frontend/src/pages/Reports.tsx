@@ -6,15 +6,13 @@ import { Button } from "@/components/ui/button";
 import StatCard from "@/components/StatCard";
 
 const CATEGORY_COLORS = [
-  "hsl(142, 45%, 28%)",
-  "hsl(38, 70%, 55%)",
-  "hsl(28, 50%, 45%)",
-  "hsl(142, 60%, 40%)",
-  "hsl(0, 72%, 51%)",
-  "hsl(200, 60%, 45%)",
-  "hsl(270, 50%, 55%)",
-  "hsl(330, 50%, 50%)",
-  "hsl(60, 60%, 45%)",
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+  "hsl(var(--primary))",
+  "hsl(var(--secondary))",
 ];
 
 import { useBudgets, useSelectedBudget, useFinancials } from "@/hooks/use-budgets";
@@ -145,16 +143,32 @@ const Reports = () => {
         ) : (
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={profitData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(40, 20%, 88%)" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="hsl(150, 10%, 45%)" />
-              <YAxis tick={{ fontSize: 12 }} stroke="hsl(150, 10%, 45%)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <XAxis 
+                dataKey="month" 
+                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} 
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis 
+                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} 
+                axisLine={false}
+                tickLine={false}
+              />
               <Tooltip
-                contentStyle={{ borderRadius: "0.5rem", border: "1px solid hsl(40, 20%, 88%)", fontSize: 13 }}
+                contentStyle={{ 
+                  backgroundColor: "hsl(var(--card))",
+                  borderRadius: "1rem", 
+                  border: "1px solid hsl(var(--border))", 
+                  backdropFilter: "blur(10px)",
+                  fontSize: 13,
+                  color: "hsl(var(--foreground))"
+                }}
                 formatter={(v: number) => `GHS ${v.toLocaleString()}`}
               />
-              <Line type="monotone" dataKey="revenue" stroke="hsl(142, 60%, 40%)" strokeWidth={2} dot={{ r: 4 }} name="Revenue" />
-              <Line type="monotone" dataKey="expenses" stroke="hsl(0, 72%, 51%)" strokeWidth={2} dot={{ r: 4 }} name="Expenses" />
-              <Line type="monotone" dataKey="profit" stroke="hsl(38, 70%, 55%)" strokeWidth={2.5} dot={{ r: 4 }} name="Profit" />
+              <Line type="monotone" dataKey="revenue" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={{ r: 4 }} name="Revenue" />
+              <Line type="monotone" dataKey="expenses" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={{ r: 4 }} name="Expenses" />
+              <Line type="monotone" dataKey="profit" stroke="hsl(var(--chart-1))" strokeWidth={3} dot={{ r: 4 }} name="Profit" />
             </LineChart>
           </ResponsiveContainer>
         )}
@@ -169,15 +183,31 @@ const Reports = () => {
           ) : (
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={budgetVsActual}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(40, 20%, 88%)" />
-                <XAxis dataKey="category" tick={{ fontSize: 11 }} stroke="hsl(150, 10%, 45%)" />
-                <YAxis tick={{ fontSize: 12 }} stroke="hsl(150, 10%, 45%)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis 
+                  dataKey="category" 
+                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} 
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis 
+                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} 
+                  axisLine={false}
+                  tickLine={false}
+                />
                 <Tooltip
-                  contentStyle={{ borderRadius: "0.5rem", border: "1px solid hsl(40, 20%, 88%)", fontSize: 13 }}
+                  contentStyle={{ 
+                    backgroundColor: "hsl(var(--card))",
+                    borderRadius: "1rem", 
+                    border: "1px solid hsl(var(--border))", 
+                    backdropFilter: "blur(10px)",
+                    fontSize: 13,
+                    color: "hsl(var(--foreground))"
+                  }}
                   formatter={(v: number) => `GHS ${v.toLocaleString()}`}
                 />
-                <Bar dataKey="budgeted" fill="hsl(142, 45%, 28%)" radius={[4, 4, 0, 0]} name="Budgeted" />
-                <Bar dataKey="actual" fill="hsl(38, 70%, 55%)" radius={[4, 4, 0, 0]} name="Actual" />
+                <Bar dataKey="budgeted" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} name="Budgeted" />
+                <Bar dataKey="actual" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} name="Actual" />
               </BarChart>
             </ResponsiveContainer>
           )}

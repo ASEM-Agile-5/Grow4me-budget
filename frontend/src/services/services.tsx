@@ -8,7 +8,6 @@ const api = axios.create({
     "https://grow4me-backend-213305484430.us-central1.run.app/",
   withCredentials: true,
 });
-
 // Helper functions for cookie management
 export const setCookie = (name: string, value: string, days?: number) => {
   let expires = "";
@@ -523,6 +522,16 @@ export const getFinancialsAPI = async (
     return response.data;
   } catch (error: any) {
     console.error("Failed to fetch financials:", error);
+    throw error;
+  }
+};
+
+export const deleteBudgetItemAPI = async (itemId: string) => {
+  try {
+    const response = await api.delete(`budget/items/delete/${itemId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error(`Failed to delete budget item ${itemId}:`, error);
     throw error;
   }
 };

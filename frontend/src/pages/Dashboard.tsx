@@ -23,15 +23,13 @@ import { Button } from "@/components/ui/button";
 import StatCard from "@/components/StatCard";
 
 const CATEGORY_COLORS = [
-  "hsl(142, 45%, 28%)",
-  "hsl(38, 70%, 55%)",
-  "hsl(28, 50%, 45%)",
-  "hsl(142, 60%, 40%)",
-  "hsl(0, 72%, 51%)",
-  "hsl(200, 60%, 45%)",
-  "hsl(270, 50%, 55%)",
-  "hsl(330, 50%, 50%)",
-  "hsl(60, 60%, 45%)",
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+  "hsl(var(--primary))",
+  "hsl(var(--secondary))",
 ];
 
 import {
@@ -69,7 +67,11 @@ const Dashboard = () => {
 
   const { data: summaryData, isLoading: summaryLoading } =
     useDashboardSummary(year);
-  const { data: monthlyDataResponse, isLoading: monthlyLoading } =
+  // Total monthly data (for the whole year/all budgets)
+  const { data: totalMonthlyDataResponse, isLoading: totalMonthlyLoading } =
+    useMonthlyExpenses(year);
+  // Budget-specific monthly data
+  const { data: monthlyDataResponse, isLoading: monthlyLoading } = 
     useMonthlyExpenses(year, selectedBudgetId || undefined);
   const { data: categoryDataResponse, isLoading: categoryLoading } =
     useCategoryExpenses(selectedBudgetId);
@@ -97,7 +99,7 @@ const Dashboard = () => {
     categoryLoading;
   const error = budgetsError ? "Failed to load dashboard data" : null;
 
-  // Monthly expenses chart data
+  // Budget-specific monthly chart data
   const monthlyExpenseData = useMemo(() => {
     if (!monthlyDataResponse) return [];
     return Object.entries(monthlyDataResponse).map(([month, amount]) => ({
@@ -105,6 +107,15 @@ const Dashboard = () => {
       amount: Number(amount),
     }));
   }, [monthlyDataResponse]);
+
+  // Total monthly chart data (all budgets)
+  const totalMonthlyExpenseData = useMemo(() => {
+    if (!totalMonthlyDataResponse) return [];
+    return Object.entries(totalMonthlyDataResponse).map(([month, amount]) => ({
+      month,
+      amount: Number(amount),
+    }));
+  }, [totalMonthlyDataResponse]);
 
   // Category breakdown chart data
   const categoryExpenseData = useMemo(() => {
@@ -164,44 +175,66 @@ const Dashboard = () => {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Budget"
-          value={`GHS ${totalBudget.toLocaleString()}`}
-          subtitle="Planned spending"
-          icon={Wallet}
-        />
-        <StatCard
-          title="Expenses"
-          value={`GHS ${totalExpenses.toLocaleString()}`}
-          subtitle={
-            totalBudget > 0
-              ? `${((totalExpenses / totalBudget) * 100).toFixed(0)}% of budget`
-              : "No budget set"
-          }
-          icon={Receipt}
-          variant="warning"
-        />
-        <StatCard
-          title="Revenue"
-          value={`GHS ${totalRevenue.toLocaleString()}`}
-          subtitle={`${revenuesForSelected.filter((r) => r.status === "pending").length} pending`}
-          icon={TrendingUp}
-          variant="success"
-        />
-        <StatCard
-          title="Net Profit"
-          value={`GHS ${netProfit.toLocaleString()}`}
-          subtitle={netProfit >= 0 ? "Profitable" : "Loss"}
-          icon={netProfit >= 0 ? TrendingUp : TrendingDown}
-          variant={netProfit >= 0 ? "success" : "danger"}
-        />
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Hero Card */}
+        <div className="lg:col-span-2">
+          <StatCard
+            title="Total Budget Balance"
+            value={`GHS ${totalBudget.toLocaleString()}`}
+            subtitle={selectedBudget ? `${selectedBudget.name} · ${selectedBudget.year}` : "Select a budget"}
+            icon={Wallet}
+            variant="hero"
+            className="h-full min-h-[160px]"
+          />
+        </div>
+        
+        {/* Quick Stats Grid */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col rounded-2xl border bg-card/60 p-4 transition-all hover:bg-card/80">
+            <div className="mb-2 h-10 w-10 rounded-xl bg-orange-500/20 text-orange-500 flex items-center justify-center">
+              <Receipt className="h-5 w-5" />
+            </div>
+            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Spent</p>
+            <p className="text-lg font-bold">GHS {totalExpenses.toLocaleString()}</p>
+          </div>
+          
+          <div className="flex flex-col rounded-2xl border bg-card/60 p-4 transition-all hover:bg-card/80">
+            <div className="mb-2 h-10 w-10 rounded-xl bg-emerald-500/20 text-emerald-500 flex items-center justify-center">
+              <TrendingUp className="h-5 w-5" />
+            </div>
+            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Revenue</p>
+            <p className="text-lg font-bold">GHS {totalRevenue.toLocaleString()}</p>
+          </div>
+          
+          <div className="flex flex-col rounded-2xl border bg-card/60 p-4 transition-all hover:bg-card/80 col-span-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
+                  netProfit >= 0 ? "bg-primary/20 text-primary" : "bg-destructive/20 text-destructive"
+                }`}>
+                  {netProfit >= 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+                </div>
+                <div>
+                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Net Profit</p>
+                  <p className="text-lg font-bold">GHS {netProfit.toLocaleString()}</p>
+                </div>
+              </div>
+              <div className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                netProfit >= 0 ? "bg-emerald-500/20 text-emerald-500" : "bg-destructive/20 text-destructive"
+              }`}>
+                {netProfit >= 0 ? "+2.4%" : "-1.2%"}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Monthly expenses */}
+        {/* Monthly expenses by budget */}
         <div className="rounded-xl border bg-card p-5">
-          <h3 className="mb-4 text-sm font-semibold">Total Monthly Expenses</h3>
+          <h3 className="mb-4 text-sm font-semibold text-primary/80">
+            Monthly Expenses: {selectedBudget?.name || "Selected Budget"}
+          </h3>
           {monthlyExpenseData.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-16">
               No expense data for this budget
@@ -211,20 +244,30 @@ const Dashboard = () => {
               <BarChart data={monthlyExpenseData}>
                 <CartesianGrid
                   strokeDasharray="3 3"
-                  stroke="hsl(40, 20%, 88%)"
+                  stroke="hsl(var(--border))"
+                  vertical={false}
                 />
                 <XAxis
                   dataKey="month"
-                  tick={{ fontSize: 12 }}
-                  stroke="hsl(150, 10%, 45%)"
+                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                  axisLine={false}
+                  tickLine={false}
                 />
-                <YAxis tick={{ fontSize: 12 }} stroke="hsl(150, 10%, 45%)" />
+                <YAxis 
+                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
                 <Tooltip
                   contentStyle={{
-                    borderRadius: "0.5rem",
-                    border: "1px solid hsl(40, 20%, 88%)",
+                    backgroundColor: "hsl(var(--card))",
+                    borderRadius: "1rem",
+                    border: "1px solid hsl(var(--border))",
+                    backdropFilter: "blur(10px)",
                     fontSize: 13,
+                    color: "hsl(var(--foreground))",
                   }}
+                  itemStyle={{ color: "hsl(var(--primary))" }}
                   formatter={(value: number) => [
                     `GHS ${value.toLocaleString()}`,
                     "Expenses",
@@ -232,8 +275,9 @@ const Dashboard = () => {
                 />
                 <Bar
                   dataKey="amount"
-                  fill="hsl(142, 45%, 28%)"
-                  radius={[6, 6, 0, 0]}
+                  fill="hsl(var(--chart-1))"
+                  radius={[8, 8, 0, 0]}
+                  className="transition-all duration-300"
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -291,44 +335,53 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Recent expenses */}
       <div className="rounded-xl border bg-card p-5">
-        <h3 className="mb-4 text-sm font-semibold">Recent Expenses</h3>
-        {expensesForSelected.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">
-            No expenses for this budget
+        <h3 className="mb-4 text-sm font-semibold">Total Monthly Expenses (All Projects)</h3>
+        {totalMonthlyExpenseData.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-16">
+            No aggregated data available
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="pb-3 font-medium">Date</th>
-                  <th className="pb-3 font-medium">Category</th>
-                  <th className="pb-3 font-medium">Notes</th>
-                  <th className="pb-3 font-medium text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {expensesForSelected.slice(0, 5).map((e) => (
-                  <tr key={e.id} className="border-b last:border-0">
-                    <td className="py-3 text-muted-foreground">
-                      {new Date(e.date).toLocaleDateString()}
-                    </td>
-                    <td className="py-3">
-                      <span className="rounded-md bg-muted px-2 py-1 text-xs font-medium">
-                        {e.category}
-                      </span>
-                    </td>
-                    <td className="py-3">{e.notes}</td>
-                    <td className="py-3 text-right font-medium">
-                      GHS {e.amount.toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={totalMonthlyExpenseData}>
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="hsl(var(--border))"
+                vertical={false}
+              />
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis 
+                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "hsl(var(--card))",
+                    borderRadius: "1rem",
+                    border: "1px solid hsl(var(--border))",
+                    backdropFilter: "blur(10px)",
+                  fontSize: 13,
+                  color: "hsl(var(--foreground))",
+                }}
+                itemStyle={{ color: "hsl(var(--chart-3))" }}
+                formatter={(value: number) => [
+                  `GHS ${value.toLocaleString()}`,
+                  "Total Expenses",
+                ]}
+              />
+              <Bar
+                dataKey="amount"
+                fill="hsl(var(--chart-3))"
+                radius={[8, 8, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
         )}
       </div>
     </div>
