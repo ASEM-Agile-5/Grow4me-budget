@@ -50,6 +50,7 @@ jobs:
         run: |
           gcloud run jobs update run-migrations \
             --image us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/grow4me-backend/api:latest \
+            --args="manage.py,migrate,--fake-initial" \
             --region us-central1 \
             --project ${{ secrets.GCP_PROJECT_ID }}
           gcloud run jobs execute run-migrations \
