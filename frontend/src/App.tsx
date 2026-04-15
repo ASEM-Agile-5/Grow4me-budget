@@ -15,6 +15,8 @@ import Reports from "./pages/Reports";
 import CreateBudget from "./pages/CreateBudget";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
+import Apps from "./pages/Apps";
+import Profile from "./pages/Profile";
 import { useEffect } from "react";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 
@@ -116,6 +118,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Reports />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/apps"
+              element={
+                <ProtectedRoute>
+                  <Apps />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
                 </ProtectedRoute>
               }
             />

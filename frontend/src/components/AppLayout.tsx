@@ -14,6 +14,8 @@ import {
   LogOut,
   Sun,
   Moon,
+  LayoutGrid,
+  UserCircle,
 } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -27,6 +29,7 @@ const navItems = [
   { path: "/inventory", label: "Inventory", icon: Package },
   { path: "/revenue", label: "Revenue", icon: TrendingUp },
   { path: "/reports", label: "Reports", icon: BarChart3 },
+  { path: "/apps", label: "Apps", icon: LayoutGrid },
 ];
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
@@ -165,16 +168,21 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
               {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
             </button>
             <div className="flex items-center gap-4 border-l pl-4">
-              <div className="hidden sm:flex flex-col items-end">
-                <div className="text-sm font-medium">
-                  {user?.first_name} {user?.last_name}
+              <Link 
+                to="/profile" 
+                className="flex items-center gap-3 p-1 rounded-xl hover:bg-muted transition-all duration-300 group"
+              >
+                <div className="hidden sm:flex flex-col items-end">
+                  <div className="text-sm font-semibold group-hover:text-primary transition-colors">
+                    {user?.first_name} {user?.last_name}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">{user?.email}</div>
                 </div>
-                <div className="text-xs text-muted-foreground">{user?.email}</div>
-              </div>
-              <div className="h-9 w-9 rounded-full finance-gradient flex items-center justify-center text-white text-xs font-semibold shadow-sm overflow-hidden border border-white/20">
-                {user?.first_name?.[0] || ""}
-                {user?.last_name?.[0] || "U"}
-              </div>
+                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs font-bold shadow-lg overflow-hidden border border-white/20 group-hover:scale-105 transition-transform">
+                  {user?.first_name?.[0] || ""}
+                  {user?.last_name?.[0] || "U"}
+                </div>
+              </Link>
               <button
                 onClick={handleLogout}
                 className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors group"

@@ -8,6 +8,7 @@ const api = axios.create({
     "https://grow4me-backend-213305484430.us-central1.run.app/",
   withCredentials: true,
 });
+
 // Helper functions for cookie management
 export const setCookie = (name: string, value: string, days?: number) => {
   let expires = "";
