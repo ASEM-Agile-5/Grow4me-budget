@@ -106,6 +106,9 @@ class LogoutView(views.APIView):
         }, status=status.HTTP_200_OK)
         response.delete_cookie('token')
         return response
+
+
+        
 class UpdateUserRoleView(views.APIView):
     """POST /members/update-role/ — Change a user's role (ADMIN only)."""
     

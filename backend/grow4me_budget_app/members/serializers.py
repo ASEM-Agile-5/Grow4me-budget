@@ -115,6 +115,8 @@ class LoginSerializer(serializers.Serializer):
         data['user'] = user
         return data
 
+class UserSerializer(serializers.ModelSerializer):
+    
 
     role = serializers.CharField(source='role.name', read_only=True)
 
