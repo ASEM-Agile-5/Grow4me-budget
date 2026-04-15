@@ -1,7 +1,26 @@
 import { useMemo, useState } from "react";
 import { TrendingUp, TrendingDown, BarChart3 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import StatCard from "@/components/StatCard";
 
@@ -15,16 +34,30 @@ const CATEGORY_COLORS = [
   "hsl(var(--secondary))",
 ];
 
-import { useBudgets, useSelectedBudget, useFinancials } from "@/hooks/use-budgets";
+import {
+  useBudgets,
+  useSelectedBudget,
+  useFinancials,
+} from "@/hooks/use-budgets";
 
 const currentYearStr = new Date().getFullYear().toString();
-const yearOptions = Array.from({ length: 5 }, (_, i) => (parseInt(currentYearStr) - 2 + i).toString());
+const yearOptions = Array.from({ length: 5 }, (_, i) =>
+  (parseInt(currentYearStr) - 2 + i).toString(),
+);
 
 const Reports = () => {
   const [selectedYear, setSelectedYear] = useState(currentYearStr);
-  const { data: budgets = [], isLoading: budgetsLoading, refetch: refetchBudgets } = useBudgets();
+  const {
+    data: budgets = [],
+    isLoading: budgetsLoading,
+    refetch: refetchBudgets,
+  } = useBudgets();
   const { selectedBudgetId, setSelectedBudgetId } = useSelectedBudget();
-  const { data: financials, isLoading: financialsLoading, error: financialsError } = useFinancials(selectedYear, selectedBudgetId || undefined);
+  const {
+    data: financials,
+    isLoading: financialsLoading,
+    error: financialsError,
+  } = useFinancials(selectedYear, selectedBudgetId || undefined);
 
   const loading = budgetsLoading || financialsLoading;
   const error = financialsError ? "Failed to load financial reports" : null;
@@ -35,32 +68,41 @@ const Reports = () => {
   const totalExpenses = summary.totalExpenses || 0;
   const totalRevenue = summary.totalRevenue || 0;
   const totalBudget = summary.totalBudget || 0;
-  const budgetUtilization = summary.budgetUtilization ? (summary.budgetUtilization * 100).toFixed(1) : "0.0";
+  const budgetUtilization = summary.budgetUtilization
+    ? summary.budgetUtilization.toFixed(1)
+    : "0.0";
   const revenuePerExpense = summary.revenuePerExpense || 0;
 
   // Charts
   const profitData = financials?.profitLossOverTime || [];
   const budgetVsActual = financials?.budgetVsActual || [];
-  
+
   const categoryExpenseData = useMemo(() => {
     if (!financials?.expenseBreakdown) return [];
-    return Object.entries(financials.expenseBreakdown).map(([name, value], i) => ({
-      name,
-      value: value as number,
-      fill: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
-    }));
+    return Object.entries(financials.expenseBreakdown).map(
+      ([name, value], i) => ({
+        name,
+        value: value as number,
+        fill: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+      }),
+    );
   }, [financials]);
 
-  const selectedBudget = useMemo(() => 
-    budgets.find((b: any) => b.id.toString() === selectedBudgetId?.toString()),
-    [budgets, selectedBudgetId]
+  const selectedBudget = useMemo(
+    () =>
+      budgets.find(
+        (b: any) => b.id.toString() === selectedBudgetId?.toString(),
+      ),
+    [budgets, selectedBudgetId],
   );
 
   if (loading && budgets.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <div className="h-10 w-10 border-4 border-primary/20 border-t-primary animate-spin rounded-full" />
-        <p className="text-muted-foreground font-medium">Loading report data...</p>
+        <p className="text-muted-foreground font-medium">
+          Loading report data...
+        </p>
       </div>
     );
   }
@@ -90,7 +132,10 @@ const Reports = () => {
               ))}
             </SelectContent>
           </Select>
-          <Select value={(selectedBudgetId || "").toString()} onValueChange={setSelectedBudgetId}>
+          <Select
+            value={(selectedBudgetId || "").toString()}
+            onValueChange={setSelectedBudgetId}
+          >
             <SelectTrigger className="w-48" id="reports-budget-picker">
               <SelectValue placeholder="Select budget" />
             </SelectTrigger>
@@ -115,7 +160,9 @@ const Reports = () => {
         <StatCard
           title="Net Profit/Loss"
           value={`GHS ${netProfit.toLocaleString()}`}
-          subtitle={netProfit >= 0 ? "Season is profitable" : "Season at a loss"}
+          subtitle={
+            netProfit >= 0 ? "Season is profitable" : "Season at a loss"
+          }
           icon={netProfit >= 0 ? TrendingUp : TrendingDown}
           variant={netProfit >= 0 ? "success" : "danger"}
         />
@@ -139,36 +186,63 @@ const Reports = () => {
       <div className="rounded-xl border bg-card p-5">
         <h3 className="mb-4 text-sm font-semibold">Profit/Loss Over Time</h3>
         {profitData.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-16">No data for this budget</p>
+          <p className="text-sm text-muted-foreground text-center py-16">
+            No data for this budget
+          </p>
         ) : (
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={profitData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-              <XAxis 
-                dataKey="month" 
-                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} 
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="hsl(var(--border))"
+                vertical={false}
+              />
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
                 axisLine={false}
                 tickLine={false}
               />
-              <YAxis 
-                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} 
+              <YAxis
+                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
                 axisLine={false}
                 tickLine={false}
               />
               <Tooltip
-                contentStyle={{ 
+                contentStyle={{
                   backgroundColor: "hsl(var(--card))",
-                  borderRadius: "1rem", 
-                  border: "1px solid hsl(var(--border))", 
+                  borderRadius: "1rem",
+                  border: "1px solid hsl(var(--border))",
                   backdropFilter: "blur(10px)",
                   fontSize: 13,
-                  color: "hsl(var(--foreground))"
+                  color: "hsl(var(--foreground))",
                 }}
                 formatter={(v: number) => `GHS ${v.toLocaleString()}`}
               />
-              <Line type="monotone" dataKey="revenue" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={{ r: 4 }} name="Revenue" />
-              <Line type="monotone" dataKey="expenses" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={{ r: 4 }} name="Expenses" />
-              <Line type="monotone" dataKey="profit" stroke="hsl(var(--chart-1))" strokeWidth={3} dot={{ r: 4 }} name="Profit" />
+              <Line
+                type="monotone"
+                dataKey="revenue"
+                stroke="hsl(var(--chart-2))"
+                strokeWidth={2}
+                dot={{ r: 4 }}
+                name="Revenue"
+              />
+              <Line
+                type="monotone"
+                dataKey="expenses"
+                stroke="hsl(var(--chart-4))"
+                strokeWidth={2}
+                dot={{ r: 4 }}
+                name="Expenses"
+              />
+              <Line
+                type="monotone"
+                dataKey="profit"
+                stroke="hsl(var(--chart-1))"
+                strokeWidth={3}
+                dot={{ r: 4 }}
+                name="Profit"
+              />
             </LineChart>
           </ResponsiveContainer>
         )}
@@ -179,35 +253,51 @@ const Reports = () => {
         <div className="rounded-xl border bg-card p-5">
           <h3 className="mb-4 text-sm font-semibold">Budget vs Actual</h3>
           {budgetVsActual.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-16">No budget items</p>
+            <p className="text-sm text-muted-foreground text-center py-16">
+              No budget items
+            </p>
           ) : (
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={budgetVsActual}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis 
-                  dataKey="category" 
-                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} 
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="hsl(var(--border))"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="category"
+                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
                   axisLine={false}
                   tickLine={false}
                 />
-                <YAxis 
-                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} 
+                <YAxis
+                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <Tooltip
-                  contentStyle={{ 
+                  contentStyle={{
                     backgroundColor: "hsl(var(--card))",
-                    borderRadius: "1rem", 
-                    border: "1px solid hsl(var(--border))", 
+                    borderRadius: "1rem",
+                    border: "1px solid hsl(var(--border))",
                     backdropFilter: "blur(10px)",
                     fontSize: 13,
-                    color: "hsl(var(--foreground))"
+                    color: "hsl(var(--foreground))",
                   }}
                   formatter={(v: number) => `GHS ${v.toLocaleString()}`}
                 />
-                <Bar dataKey="budgeted" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} name="Budgeted" />
-                <Bar dataKey="actual" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} name="Actual" />
+                <Bar
+                  dataKey="budgeted"
+                  fill="hsl(var(--chart-1))"
+                  radius={[4, 4, 0, 0]}
+                  name="Budgeted"
+                />
+                <Bar
+                  dataKey="actual"
+                  fill="hsl(var(--chart-3))"
+                  radius={[4, 4, 0, 0]}
+                  name="Actual"
+                />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -217,7 +307,9 @@ const Reports = () => {
         <div className="rounded-xl border bg-card p-5">
           <h3 className="mb-4 text-sm font-semibold">Expense Breakdown</h3>
           {categoryExpenseData.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-16">No expense data</p>
+            <p className="text-sm text-muted-foreground text-center py-16">
+              No expense data
+            </p>
           ) : (
             <>
               <ResponsiveContainer width="100%" height={220}>
@@ -236,13 +328,21 @@ const Reports = () => {
                       <Cell key={i} fill={entry.fill} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(v: number) => `GHS ${v.toLocaleString()}`} />
+                  <Tooltip
+                    formatter={(v: number) => `GHS ${v.toLocaleString()}`}
+                  />
                 </PieChart>
               </ResponsiveContainer>
               <div className="mt-2 flex flex-wrap gap-3 justify-center">
                 {categoryExpenseData.map((c) => (
-                  <div key={c.name} className="flex items-center gap-1.5 text-xs">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.fill }} />
+                  <div
+                    key={c.name}
+                    className="flex items-center gap-1.5 text-xs"
+                  >
+                    <span
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: c.fill }}
+                    />
                     {c.name}: GHS {c.value.toLocaleString()}
                   </div>
                 ))}
