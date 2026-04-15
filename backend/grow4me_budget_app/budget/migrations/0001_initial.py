@@ -1,0 +1,182 @@
+import django.db.models.deletion
+import django.utils.timezone
+import uuid
+from django.conf import settings
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    initial = True
+
+    dependencies = [
+        ('project', '0001_initial'),
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name='BudgetCategory',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('category_name', models.CharField(max_length=255, unique=True)),
+                ('description', models.TextField(blank=True, default='')),
+            ],
+            options={
+                'verbose_name_plural': 'Budget Categories',
+            },
+        ),
+        migrations.CreateModel(
+            name='Template',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('name', models.CharField(default='Untitled Template', max_length=255)),
+                ('description', models.TextField(blank=True, default='')),
+                ('icon', models.CharField(blank=True, default='', max_length=50)),
+                ('budget_items', models.JSONField(default=list)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+            ],
+        ),
+        migrations.CreateModel(
+            name='Budget',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('name', models.CharField(max_length=255)),
+                ('year', models.IntegerField()),
+                ('description', models.TextField(blank=True, default='')),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('project', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE,
+                    related_name='budgets',
+                    to='project.projects',
+                )),
+                ('user', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE,
+                    related_name='budgets',
+                    to=settings.AUTH_USER_MODEL,
+                )),
+            ],
+        ),
+        migrations.CreateModel(
+            name='BudgetItem',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('description', models.TextField(blank=True, default='')),
+                ('category_name', models.CharField(blank=True, max_length=255, null=True)),
+                ('planned_amount', models.DecimalField(decimal_places=2, max_digits=12)),
+                ('inventory', models.BooleanField(default=False)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('budget', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE,
+                    related_name='items',
+                    to='budget.budget',
+                )),
+                ('category', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE,
+                    related_name='budget_items',
+                    to='budget.budgetcategory',
+                )),
+            ],
+        ),
+        migrations.CreateModel(
+            name='InventoryItem',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('units', models.CharField(blank=True, default='', max_length=50)),
+                ('minimum_stock', models.IntegerField(default=0)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('budget_item', models.OneToOneField(
+                    on_delete=django.db.models.deletion.CASCADE,
+                    related_name='inventory_item',
+                    to='budget.budgetitem',
+                )),
+                ('user', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE,
+                    related_name='inventory_items',
+                    to=settings.AUTH_USER_MODEL,
+                )),
+            ],
+        ),
+        migrations.CreateModel(
+            name='InventoryMovement',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('action', models.CharField(
+                    choices=[('add_stock', 'Add Stock'), ('remove_stock', 'Remove Stock')],
+                    max_length=20,
+                )),
+                ('quantity', models.IntegerField()),
+                ('notes', models.TextField(blank=True, default='')),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('budget_item', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE,
+                    related_name='movements',
+                    to='budget.budgetitem',
+                )),
+                ('user', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE,
+                    related_name='inventory_movements',
+                    to=settings.AUTH_USER_MODEL,
+                )),
+            ],
+        ),
+        migrations.CreateModel(
+            name='Expense',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('amount', models.DecimalField(decimal_places=2, max_digits=12)),
+                ('date', models.DateField()),
+                ('notes', models.TextField(blank=True, default='')),
+                ('inventory', models.BooleanField(default=False)),
+                ('quantity', models.IntegerField(default=0)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('budget', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE,
+                    related_name='expenses',
+                    to='budget.budget',
+                )),
+                ('budget_item', models.ForeignKey(
+                    blank=True,
+                    null=True,
+                    on_delete=django.db.models.deletion.SET_NULL,
+                    related_name='expenses',
+                    to='budget.budgetitem',
+                )),
+                ('user', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE,
+                    related_name='expenses',
+                    to=settings.AUTH_USER_MODEL,
+                )),
+            ],
+        ),
+        migrations.CreateModel(
+            name='Sale',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('product', models.CharField(default='Unknown', max_length=255)),
+                ('quantity', models.IntegerField(default=1)),
+                ('price_per_unit', models.DecimalField(decimal_places=2, default=0.0, max_digits=12)),
+                ('total_amount', models.DecimalField(decimal_places=2, editable=False, max_digits=12)),
+                ('date', models.DateField(default=django.utils.timezone.now)),
+                ('buyer', models.CharField(blank=True, default='', max_length=255)),
+                ('payment_status', models.CharField(
+                    choices=[('paid', 'Paid'), ('pending', 'Pending')],
+                    default='paid',
+                    max_length=20,
+                )),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('budget', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE,
+                    related_name='sales',
+                    to='budget.budget',
+                )),
+                ('user', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE,
+                    related_name='sales',
+                    to=settings.AUTH_USER_MODEL,
+                )),
+            ],
+        ),
+    ]
