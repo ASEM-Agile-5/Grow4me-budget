@@ -1,13 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Sprout } from "lucide-react";
-import { setCookie } from "@/services/services";
-import axios from "axios";
-
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "https://grow4me-backend-213305484430.us-central1.run.app/",
-  withCredentials: true,
-});
+import { loginAPI } from "@/services/services";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -22,16 +16,18 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      const res = await api.post("user/login/", { email, password });
-      const token = res.data?.access_token ?? res.data?.token ?? res.data?.access;
-      if (token) {
-        setCookie("access_token", token, 7);
-        navigate("/");
+      const res = await loginAPI(email, password);
+      if ((res as any)?.status === 401) {
+        setError("Invalid credentials. Please try again.");
       } else {
-        setError("Login failed. Please try again.");
+        navigate("/");
       }
     } catch (err: any) {
-      setError(err?.response?.data?.message ?? err?.response?.data?.detail ?? "Invalid credentials.");
+      setError(
+        err?.response?.data?.message ??
+        err?.response?.data?.detail ??
+        "Login failed. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -39,7 +35,7 @@ export default function Login() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--gfm-ink-50)", display: "grid", gridTemplateColumns: "1fr 1fr" }}>
-      {/* Left panel — brand */}
+      {/* Left — brand */}
       <div style={{ background: "linear-gradient(135deg, #0f6e33 0%, #16A34A 100%)", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "60px 48px", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: -100, right: -100, width: 400, height: 400, borderRadius: 999, background: "rgba(255,255,255,0.08)" }} />
         <div style={{ position: "absolute", bottom: -60, left: -60, width: 280, height: 280, borderRadius: 999, background: "rgba(245,158,11,0.15)" }} />
@@ -47,9 +43,11 @@ export default function Login() {
           <div style={{ width: 72, height: 72, borderRadius: 22, background: "rgba(255,255,255,0.18)", display: "grid", placeItems: "center", margin: "0 auto 24px" }}>
             <Sprout size={32} />
           </div>
-          <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: "-0.025em", marginBottom: 12 }}>GrowForMe</div>
+          <img src="/assets/logo_long.png" alt="GrowForMe"
+            style={{ height: 36, width: "auto", marginBottom: 16, filter: "brightness(0) invert(1)" }}
+            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
           <div style={{ fontSize: 15, color: "rgba(255,255,255,0.85)", lineHeight: 1.6 }}>
-            Track every cedi. Grow every season. Your farm's financial story starts here.
+            Track every cedi. Grow every season.<br />Your farm's financial story starts here.
           </div>
           <div style={{ marginTop: 40, display: "flex", gap: 20, justifyContent: "center", flexWrap: "wrap" }}>
             {["Budget tracking", "Expense logging", "Revenue analytics"].map(f => (
@@ -61,11 +59,13 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Right panel — form */}
+      {/* Right — form */}
       <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "60px 48px" }}>
         <div style={{ width: "100%", maxWidth: 400 }}>
           <div style={{ marginBottom: 32 }}>
-            <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.025em", color: "var(--gfm-ink-900)", marginBottom: 6 }}>Welcome back</div>
+            <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.025em", color: "var(--gfm-ink-900)", marginBottom: 6 }}>
+              Welcome back
+            </div>
             <div style={{ fontSize: 14, color: "var(--gfm-ink-500)" }}>Sign in to your farm dashboard</div>
           </div>
 
@@ -116,7 +116,9 @@ export default function Login() {
               style={{ width: "100%", height: 44, borderRadius: 12, fontSize: 14, justifyContent: "center", marginTop: 4 }}
               disabled={loading}
             >
-              {loading ? <div className="gfm-spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> : "Sign in"}
+              {loading
+                ? <div className="gfm-spinner" style={{ width: 18, height: 18, borderWidth: 2 }} />
+                : "Sign in"}
             </button>
           </form>
 
@@ -129,19 +131,11 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Mobile: stack vertically */}
       <style>{`
         @media (max-width: 720px) {
-          div[style*="gridTemplateColumns: 1fr 1fr"] {
-            grid-template-columns: 1fr !important;
-          }
-          div[style*="gridTemplateColumns: 1fr 1fr"] > div:first-child {
-            min-height: 200px !important;
-            padding: 40px 24px !important;
-          }
-          div[style*="gridTemplateColumns: 1fr 1fr"] > div:last-child {
-            padding: 40px 24px !important;
-          }
+          .gfm-login-wrap { grid-template-columns: 1fr !important; }
+          .gfm-login-brand { min-height: 220px; padding: 40px 24px !important; }
+          .gfm-login-form  { padding: 40px 24px !important; }
         }
       `}</style>
     </div>
