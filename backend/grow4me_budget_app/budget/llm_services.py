@@ -81,7 +81,7 @@ def run_llm_pipeline(text):
         category_list=cat_list_str
     )
 
-    model = genai.GenerativeModel("gemini-3-flash-preview")
+    model = genai.GenerativeModel("gemini-2.0-flash")
     
     # Gemini 1.5 Flash supports system instructions and generation config for JSON
     response = model.generate_content(

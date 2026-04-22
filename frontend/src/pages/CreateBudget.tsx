@@ -110,6 +110,7 @@ const CreateBudget = () => {
 
   const validateMetadata = () => {
     if (!budgetName.trim() || !selectedProject) {
+      toast.error("Please fill in Budget Name and select a Project before continuing.");
       setShowValidationAlert(true);
       return false;
     }
