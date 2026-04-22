@@ -1,9 +1,29 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Download, Plus, Filter, CalendarDays, Search, X, Check } from "lucide-react";
 import { useExpenses, useBudgets, useBudgetDetails, useCreateExpense } from "@/hooks/use-budgets";
 import { Stat, fmtK, fmtC, catColor } from "@/components/gfm/primitives";
 import { Receipt, Wallet, Activity } from "lucide-react";
 import { toast } from "sonner";
+import { useSearchParams } from "react-router-dom";
+
+function exportCSV(expenses: any[]) {
+  const header = ["Date", "Category", "Budget", "Notes", "Amount"];
+  const rows = expenses.map((e: any) => [
+    new Date(e.date).toLocaleDateString("en-GB"),
+    e.category_name ?? "",
+    e.budget_name ?? "",
+    (e.notes ?? "").replace(/,/g, ";"),
+    Number(e.amount ?? 0).toFixed(2),
+  ]);
+  const csv = [header, ...rows].map(r => r.join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `expenses_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 function LogExpenseModal({ onClose }: { onClose: () => void }) {
   const { data: budgets = [] } = useBudgets();
@@ -176,6 +196,14 @@ export default function Expenses() {
   const { data: expenses = [], isLoading } = useExpenses();
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("log") === "1") {
+      setShowModal(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams]);
 
   const list = [...expenses].reverse();
   const filtered = search
@@ -206,7 +234,7 @@ export default function Expenses() {
           <div className="gfm-h1-sub">Every coin spent, tied to a budget.</div>
         </div>
         <div className="gfm-page-actions">
-          <button className="gfm-btn gfm-btn-ghost"><Download size={13} />Export CSV</button>
+          <button className="gfm-btn gfm-btn-ghost" onClick={() => exportCSV([...expenses].reverse())}><Download size={13} />Export CSV</button>
           <button className="gfm-btn gfm-btn-primary" onClick={() => setShowModal(true)}>
             <Plus size={13} />Log expense
           </button>

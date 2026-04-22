@@ -117,7 +117,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
               <Bell size={17} />
               <span className="gfm-ping" />
             </button>
-            <button className="gfm-btn gfm-btn-amber gfm-btn-sm" onClick={() => navigate("/expenses")}>
+            <button className="gfm-btn gfm-btn-amber gfm-btn-sm" onClick={() => navigate("/expenses?log=1")}>
               <Plus size={13} />Log expense
             </button>
             <Link to="/settings" style={{ textDecoration: "none" }}>

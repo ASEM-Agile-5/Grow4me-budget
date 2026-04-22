@@ -94,7 +94,7 @@ export function RadialBars({ data, width = 280, height = 200, centerBig, centerS
   const outer = Math.min(width, height * 2) * 0.46;
   const rings = data.length;
   const segCount = 28;
-  const start = Math.PI, end = 0;
+  const start = Math.PI, end = Math.PI * 2;
   const arc = (r: number, a: number): [number, number] => [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
 
   return (

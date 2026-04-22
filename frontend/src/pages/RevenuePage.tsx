@@ -1,12 +1,157 @@
 import { useState } from "react";
-import { Download, Plus, Target, CheckCircle, Activity } from "lucide-react";
-import { useRevenues, useCreateSale } from "@/hooks/use-budgets";
+import { Download, Plus, Target, CheckCircle, Activity, X, Check } from "lucide-react";
+import { useRevenues, useCreateSale, useBudgets } from "@/hooks/use-budgets";
 import { Stat, fmtK, fmtC, pct } from "@/components/gfm/primitives";
 import { Coins } from "lucide-react";
+import { toast } from "sonner";
+
+function RecordSaleModal({ onClose }: { onClose: () => void }) {
+  const { data: budgets = [] } = useBudgets();
+  const createSale = useCreateSale();
+
+  const [budgetId, setBudgetId] = useState("");
+  const [product, setProduct] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [pricePerUnit, setPricePerUnit] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [buyer, setBuyer] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("paid");
+  const [submitting, setSubmitting] = useState(false);
+
+  const total = (Number(quantity) || 0) * (Number(pricePerUnit) || 0);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!budgetId || !product || !quantity || !pricePerUnit || !buyer) {
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await createSale.mutateAsync({
+        budget: budgetId,
+        product,
+        quantity: Number(quantity),
+        price_per_unit: Number(pricePerUnit),
+        date,
+        buyer,
+        payment_status: paymentStatus,
+      });
+      toast.success("Sale recorded successfully.");
+      onClose();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? "Failed to record sale.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 200, display: "grid", placeItems: "center", background: "rgba(15,23,42,0.45)", backdropFilter: "blur(2px)" }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="gfm-card" style={{ width: "min(520px, 95vw)", padding: 0 }}>
+        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--gfm-ink-100)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 16 }}>Record Sale</div>
+            <div className="gfm-muted" style={{ fontSize: 13, marginTop: 3 }}>Log a sale against a budget.</div>
+          </div>
+          <button className="gfm-icon-btn" style={{ width: 32, height: 32, borderRadius: 8, border: "1.5px solid var(--gfm-ink-200)" }} onClick={onClose}>
+            <X size={15} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span className="gfm-label">Budget <span style={{ color: "var(--gfm-danger)" }}>*</span></span>
+            <select className="gfm-select" value={budgetId} onChange={e => setBudgetId(e.target.value)} required>
+              <option value="">Select a budget…</option>
+              {budgets.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </label>
+
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span className="gfm-label">Product / crop <span style={{ color: "var(--gfm-danger)" }}>*</span></span>
+            <input className="gfm-input" placeholder="e.g. Maize, Tomatoes…" value={product} onChange={e => setProduct(e.target.value)} required />
+          </label>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <span className="gfm-label">Quantity <span style={{ color: "var(--gfm-danger)" }}>*</span></span>
+              <input className="gfm-input" type="number" min="0" step="0.01" placeholder="0" value={quantity} onChange={e => setQuantity(e.target.value)} required />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <span className="gfm-label">Price per unit (₵) <span style={{ color: "var(--gfm-danger)" }}>*</span></span>
+              <input className="gfm-input" type="number" min="0" step="0.01" placeholder="0.00" value={pricePerUnit} onChange={e => setPricePerUnit(e.target.value)} required />
+            </label>
+          </div>
+
+          {total > 0 && (
+            <div style={{ padding: "10px 14px", background: "var(--gfm-green-50)", borderRadius: 10, fontSize: 13, fontWeight: 700, color: "var(--gfm-green-700)" }}>
+              Total: {fmtC(total)}
+            </div>
+          )}
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <span className="gfm-label">Buyer <span style={{ color: "var(--gfm-danger)" }}>*</span></span>
+              <input className="gfm-input" placeholder="Buyer name" value={buyer} onChange={e => setBuyer(e.target.value)} required />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <span className="gfm-label">Date <span style={{ color: "var(--gfm-danger)" }}>*</span></span>
+              <input className="gfm-input" type="date" value={date} onChange={e => setDate(e.target.value)} required />
+            </label>
+          </div>
+
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span className="gfm-label">Payment status</span>
+            <select className="gfm-select" value={paymentStatus} onChange={e => setPaymentStatus(e.target.value)}>
+              <option value="paid">Paid</option>
+              <option value="pending">Pending</option>
+            </select>
+          </label>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, paddingTop: 4, borderTop: "1px solid var(--gfm-ink-100)", marginTop: 4 }}>
+            <button type="button" className="gfm-btn gfm-btn-ghost" onClick={onClose} disabled={submitting}>Cancel</button>
+            <button type="submit" className="gfm-btn gfm-btn-primary" disabled={submitting}>
+              {submitting
+                ? <><div className="gfm-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />Saving…</>
+                : <><Check size={14} />Record sale</>
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function exportRevenueCSV(revenues: any[]) {
+  const header = ["Date", "Product", "Buyer", "Budget", "Quantity", "Total", "Status"];
+  const rows = revenues.map((r: any) => [
+    new Date(r.date).toLocaleDateString("en-GB"),
+    (r.product ?? r.product_name ?? "").replace(/,/g, ";"),
+    (r.buyer ?? "").replace(/,/g, ";"),
+    (r.budget_name ?? "").replace(/,/g, ";"),
+    r.quantity ?? 0,
+    Number(r.total ?? 0).toFixed(2),
+    r.status ?? "",
+  ]);
+  const csv = [header, ...rows].map(r => r.join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `revenue_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function RevenuePage() {
   const { data: revenues = [], isLoading } = useRevenues();
   const [filter, setFilter] = useState<"all" | "paid" | "pending">("all");
+  const [showModal, setShowModal] = useState(false);
 
   const list = [...revenues].reverse();
   const totalSum = list.reduce((s: number, r: any) => s + Number(r.total ?? 0), 0);
@@ -25,14 +170,16 @@ export default function RevenuePage() {
 
   return (
     <div className="gfm-page">
+      {showModal && <RecordSaleModal onClose={() => setShowModal(false)} />}
+
       <div className="gfm-page-head">
         <div>
           <h1 className="gfm-h1">Revenue & sales</h1>
           <div className="gfm-h1-sub">Sales recorded against each farm.</div>
         </div>
         <div className="gfm-page-actions">
-          <button className="gfm-btn gfm-btn-ghost"><Download size={13} />Export</button>
-          <button className="gfm-btn gfm-btn-primary"><Plus size={13} />Record sale</button>
+          <button className="gfm-btn gfm-btn-ghost" onClick={() => exportRevenueCSV(list)}><Download size={13} />Export</button>
+          <button className="gfm-btn gfm-btn-primary" onClick={() => setShowModal(true)}><Plus size={13} />Record sale</button>
         </div>
       </div>
 
@@ -48,8 +195,8 @@ export default function RevenuePage() {
         <div className="gfm-card-head">
           <div><h3>All sales</h3><div className="sub">Linked to budgets and inventory</div></div>
           <div className="gfm-seg">
-            <button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>All</button>
-            <button className={filter === "paid" ? "active" : ""} onClick={() => setFilter("paid")}>Paid</button>
+            <button className={filter === "all"     ? "active" : ""} onClick={() => setFilter("all")}>All</button>
+            <button className={filter === "paid"    ? "active" : ""} onClick={() => setFilter("paid")}>Paid</button>
             <button className={filter === "pending" ? "active" : ""} onClick={() => setFilter("pending")}>Pending</button>
           </div>
         </div>
