@@ -13,15 +13,15 @@ export default function Dashboard() {
   const firstName = user?.first_name ?? "there";
 
   const { data: summary } = useDashboardSummary(YEAR);
-  const { data: monthly = [] } = useMonthlyExpenses(YEAR);
+  const { data: monthly } = useMonthlyExpenses(YEAR);
   const { data: expenses = [] } = useExpenses();
   const { data: revenues = [] } = useRevenues();
 
-  const planned  = Number(summary?.total_planned ?? 0);
-  const actual   = Number(summary?.total_spent   ?? 0);
-  const revenue  = revenues.filter((r: any) => r.status === "paid").reduce((s: number, r: any) => s + Number(r.total ?? 0), 0);
+  const planned  = Number(summary?.["Total Budget"] ?? 0);
+  const revenue  = Number(summary?.["Revenue"] ?? 0);
+  const net      = Number(summary?.["Net Profit"] ?? 0);
+  const actual   = expenses.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
   const revPend  = revenues.filter((r: any) => r.status !== "paid").reduce((s: number, r: any) => s + Number(r.total ?? 0), 0);
-  const net      = revenue - actual;
   const utilPct  = pct(actual, planned);
   const expected = Math.round(planned * 0.45);
 
@@ -32,9 +32,11 @@ export default function Dashboard() {
     .sort((a, b) => b.v - a.v);
 
   const recent = [...expenses].reverse().slice(0, 5);
-  const monthlyData = Array.isArray(monthly)
-    ? monthly.map((m: any) => ({ m: String(m.month ?? m.m ?? "").slice(0, 3), v: Number(m.total ?? m.v ?? 0) }))
-    : [];
+  const monthlyData = monthly && !Array.isArray(monthly)
+    ? Object.entries(monthly).map(([k, v]) => ({ m: k.slice(0, 3), v: Number(v) }))
+    : Array.isArray(monthly)
+      ? (monthly as any[]).map((m: any) => ({ m: String(m.month ?? m.m ?? "").slice(0, 3), v: Number(m.total ?? m.v ?? 0) }))
+      : [];
 
   const radial = [
     { label: "Used", pct: Math.min(utilPct, 100), color: "#16A34A" },

@@ -8,7 +8,7 @@ const YEAR = new Date().getFullYear();
 
 export default function Reports() {
   const { data: budgets = [] }  = useBudgets();
-  const { data: monthly = [] }  = useMonthlyExpenses(YEAR);
+  const { data: monthly }  = useMonthlyExpenses(YEAR);
   const { data: revenues = [] } = useRevenues();
   const { data: expenses = [] } = useExpenses();
 
@@ -26,9 +26,11 @@ export default function Reports() {
   });
   const groupedData = Object.entries(catTot).map(([k, v]) => ({ label: k.slice(0, 8), ...v }));
 
-  const monthlyData = Array.isArray(monthly)
-    ? monthly.map((m: any) => ({ m: String(m.month ?? m.m ?? "").slice(0, 3), v: Number(m.total ?? m.v ?? 0) }))
-    : [];
+  const monthlyData = monthly && !Array.isArray(monthly)
+    ? Object.entries(monthly).map(([k, v]) => ({ m: k.slice(0, 3), v: Number(v) }))
+    : Array.isArray(monthly)
+      ? (monthly as any[]).map((m: any) => ({ m: String(m.month ?? m.m ?? "").slice(0, 3), v: Number(m.total ?? m.v ?? 0) }))
+      : [];
 
   const donutData = budgets.slice(0, 3).map((b: any, i: number) => ({
     v: Number(b.spent ?? 0),
