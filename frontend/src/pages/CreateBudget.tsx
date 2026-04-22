@@ -252,7 +252,13 @@ const CreateBudget = () => {
         parsed,
       );
     } catch (error: any) {
-      toast.error("Failed to parse budget text. Please try again.");
+      const errType = error?.response?.data?.type;
+      const errMsg = error?.response?.data?.error || "";
+      if (errType === "ResourceExhausted" || errMsg.includes("429") || errMsg.toLowerCase().includes("quota")) {
+        toast.error("You have reached your Gemini quota. Please check your plan and billing details at aistudio.google.com.");
+      } else {
+        toast.error("Failed to parse budget text. Please try again.");
+      }
       console.error(error);
     } finally {
       setParsing(false);
