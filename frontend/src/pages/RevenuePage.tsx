@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Download, Plus, Target, CheckCircle, Activity, X, Check } from "lucide-react";
+import { Download, Plus, Target, CheckCircle, Activity, X, Check, WifiOff } from "lucide-react";
 import { useRevenues, useCreateSale, useBudgets } from "@/hooks/use-budgets";
+import { useOfflineFallback } from "@/hooks/use-offline-fallback";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 import { Stat, fmtK, fmtC, pct } from "@/components/gfm/primitives";
 import { Coins } from "lucide-react";
 import { toast } from "sonner";
@@ -149,11 +151,13 @@ function exportRevenueCSV(revenues: any[]) {
 }
 
 export default function RevenuePage() {
-  const { data: revenues = [], isLoading } = useRevenues();
+  const isOnline = useOnlineStatus();
+  const { data: revenuesRaw, isLoading } = useRevenues();
+  const { data: revenues, usingCache, lastSynced } = useOfflineFallback(["revenues"], revenuesRaw, []);
   const [filter, setFilter] = useState<"all" | "paid" | "pending">("all");
   const [showModal, setShowModal] = useState(false);
 
-  const list = [...revenues].reverse();
+  const list = [...(revenues as any[])].reverse();
   const totalSum = list.reduce((s: number, r: any) => s + Number(r.total ?? 0), 0);
   const paid     = list.filter((r: any) => r.status === "paid").reduce((s: number, r: any) => s + Number(r.total ?? 0), 0);
   const pend     = totalSum - paid;
@@ -172,6 +176,12 @@ export default function RevenuePage() {
     <div className="gfm-page">
       {showModal && <RecordSaleModal onClose={() => setShowModal(false)} />}
 
+      {usingCache && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, fontSize: 12.5, fontWeight: 600, color: "#92400e" }}>
+          <WifiOff size={13} />Showing cached data · Last synced: {lastSynced}
+        </div>
+      )}
+
       <div className="gfm-page-head">
         <div>
           <h1 className="gfm-h1">Revenue & sales</h1>
@@ -179,7 +189,7 @@ export default function RevenuePage() {
         </div>
         <div className="gfm-page-actions">
           <button className="gfm-btn gfm-btn-ghost" onClick={() => exportRevenueCSV(list)}><Download size={13} />Export</button>
-          <button className="gfm-btn gfm-btn-primary" onClick={() => setShowModal(true)}><Plus size={13} />Record sale</button>
+          <button className="gfm-btn gfm-btn-primary" disabled={!isOnline} onClick={() => setShowModal(true)}><Plus size={13} />Record sale</button>
         </div>
       </div>
 
@@ -201,8 +211,14 @@ export default function RevenuePage() {
           </div>
         </div>
         <div style={{ padding: "0 10px 8px" }}>
-          {isLoading ? (
+          {isLoading && !usingCache ? (
             <div style={{ padding: 32, display: "grid", placeItems: "center" }}><div className="gfm-spinner" /></div>
+          ) : !isOnline && list.length === 0 ? (
+            <div style={{ padding: "32px 20px", textAlign: "center" }}>
+              <WifiOff size={24} style={{ margin: "0 auto 10px", color: "var(--gfm-ink-400)" }} />
+              <div style={{ fontWeight: 700, color: "var(--gfm-ink-600)", marginBottom: 4 }}>No data available offline</div>
+              <div style={{ fontSize: 13, color: "var(--gfm-ink-400)" }}>Connect to view revenue.</div>
+            </div>
           ) : filtered.length > 0 ? (
             <table className="gfm-table">
               <thead>

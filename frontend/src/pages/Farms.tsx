@@ -1,33 +1,53 @@
 import { useNavigate } from "react-router-dom";
-import { Plus, MapPin, Sprout, ArrowRight } from "lucide-react";
+import { Plus, MapPin, Sprout, ArrowRight, WifiOff } from "lucide-react";
 import { useProjects, useBudgets } from "@/hooks/use-budgets";
+import { useOfflineFallback } from "@/hooks/use-offline-fallback";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 import { HBar, fmtK, pct } from "@/components/gfm/primitives";
 
 export default function Farms() {
   const navigate = useNavigate();
-  const { data: projects = [], isLoading } = useProjects();
-  const { data: budgets = [] } = useBudgets();
+  const isOnline = useOnlineStatus();
+  const { data: projectsRaw, isLoading } = useProjects();
+  const { data: budgetsRaw } = useBudgets();
+
+  const { data: projects, usingCache, lastSynced } = useOfflineFallback(["projects"], projectsRaw, []);
+  const { data: budgets } = useOfflineFallback(["budgets"], budgetsRaw, []);
 
   return (
     <div className="gfm-page">
+      {usingCache && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, fontSize: 12.5, fontWeight: 600, color: "#92400e" }}>
+          <WifiOff size={13} />Showing cached data · Last synced: {lastSynced}
+        </div>
+      )}
+
       <div className="gfm-page-head">
         <div>
           <h1 className="gfm-h1">Farms</h1>
           <div className="gfm-h1-sub">Every farm project you manage, active or archived.</div>
         </div>
         <div className="gfm-page-actions">
-          <button className="gfm-btn gfm-btn-primary"><Plus size={13} />New farm</button>
+          <button className="gfm-btn gfm-btn-primary" disabled={!isOnline}><Plus size={13} />New farm</button>
         </div>
       </div>
 
-      {isLoading ? (
+      {isLoading && !usingCache ? (
         <div style={{ display: "grid", placeItems: "center", padding: 48 }}>
           <div className="gfm-spinner" />
         </div>
-      ) : projects.length > 0 ? (
+      ) : !isOnline && (projects as any[]).length === 0 ? (
+        <div className="gfm-empty" style={{ padding: "56px 28px" }}>
+          <WifiOff size={28} style={{ margin: "0 auto 12px", color: "var(--gfm-ink-400)" }} />
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>No data available offline</div>
+          <div style={{ fontSize: 13 }}>Connect to the internet to load your farms.</div>
+        </div>
+      ) : (projects as any[]).length > 0 ? (
         <div className="gfm-grid gfm-grid-3">
-          {projects.map((p: any) => {
-            const farmBudgets = budgets.filter((b: any) => b.project === p.name || b.projectId === p.id);
+          {(projects as any[]).map((p: any) => {
+            const farmBudgets = (budgets as any[]).filter(
+              (b: any) => b.project === p.name || b.projectId === p.id
+            );
             const planned = farmBudgets.reduce((s: number, b: any) => s + Number(b.planned ?? 0), 0);
             const spent   = farmBudgets.reduce((s: number, b: any) => s + Number(b.spent   ?? 0), 0);
             const utilPct = pct(spent, planned);
@@ -81,7 +101,7 @@ export default function Farms() {
           </div>
           <div style={{ fontWeight: 800, color: "var(--gfm-ink-900)", fontSize: 16, marginBottom: 6 }}>No farms yet</div>
           <div style={{ fontSize: 13, marginBottom: 18 }}>Add a farm to start tracking budgets and expenses.</div>
-          <button className="gfm-btn gfm-btn-primary" style={{ margin: "0 auto" }}><Plus size={13} />Create your first farm</button>
+          <button className="gfm-btn gfm-btn-primary" style={{ margin: "0 auto" }} disabled={!isOnline}><Plus size={13} />Create your first farm</button>
         </div>
       )}
     </div>

@@ -1,16 +1,28 @@
 import { useNavigate } from "react-router-dom";
-import { Plus, Filter, Sprout, ArrowRight } from "lucide-react";
+import { Plus, Filter, Sprout, ArrowRight, WifiOff } from "lucide-react";
 import { useBudgets } from "@/hooks/use-budgets";
+import { useOfflineFallback } from "@/hooks/use-offline-fallback";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 import { PaceBar, HBar, fmtK, pct } from "@/components/gfm/primitives";
 
 export default function Budgets() {
   const navigate = useNavigate();
-  const { data: budgets = [], isLoading } = useBudgets();
+  const isOnline = useOnlineStatus();
+  const { data: budgetsRaw, isLoading } = useBudgets();
+  const { data: budgets, usingCache, lastSynced } = useOfflineFallback(["budgets"], budgetsRaw, []);
 
-  const active = budgets.filter((b: any) => b.status !== "closed" && b.status !== "archived");
+  const active = (budgets as any[]).filter(
+    (b: any) => b.status !== "closed" && b.status !== "archived"
+  );
 
   return (
     <div className="gfm-page">
+      {usingCache && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, fontSize: 12.5, fontWeight: 600, color: "#92400e" }}>
+          <WifiOff size={13} />Showing cached data · Last synced: {lastSynced}
+        </div>
+      )}
+
       <div className="gfm-page-head">
         <div>
           <h1 className="gfm-h1">Budgets</h1>
@@ -23,15 +35,26 @@ export default function Budgets() {
             <button>Closed</button>
           </div>
           <button className="gfm-btn gfm-btn-ghost"><Filter size={13} />Filter</button>
-          <button className="gfm-btn gfm-btn-primary" onClick={() => navigate("/budgets/create")}>
+          <button
+            className="gfm-btn gfm-btn-primary"
+            onClick={() => navigate("/budgets/create")}
+            disabled={!isOnline}
+            title={!isOnline ? "Go online to create a budget" : undefined}
+          >
             <Plus size={13} />New budget
           </button>
         </div>
       </div>
 
-      {isLoading ? (
+      {isLoading && !usingCache ? (
         <div style={{ display: "grid", placeItems: "center", padding: 48 }}>
           <div className="gfm-spinner" />
+        </div>
+      ) : !isOnline && budgets.length === 0 ? (
+        <div className="gfm-empty" style={{ padding: "56px 28px" }}>
+          <WifiOff size={28} style={{ margin: "0 auto 12px", color: "var(--gfm-ink-400)" }} />
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>No data available offline</div>
+          <div style={{ fontSize: 13 }}>Connect to the internet to load your budgets.</div>
         </div>
       ) : (
         <div className="gfm-grid gfm-grid-3">
@@ -42,9 +65,12 @@ export default function Budgets() {
             const utilPct = pct(spent, planned);
             const over    = utilPct > 100;
             return (
-              <div key={b.id} className="gfm-card gfm-card-p"
+              <div
+                key={b.id}
+                className="gfm-card gfm-card-p"
                 style={{ cursor: "pointer", display: "flex", flexDirection: "column", gap: 14 }}
-                onClick={() => navigate(`/budgets/${b.id}`)}>
+                onClick={() => navigate(`/budgets/${b.id}`)}
+              >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <span className="gfm-badge"><Sprout size={11} />{b.project}</span>
@@ -85,15 +111,20 @@ export default function Budgets() {
             );
           })}
 
-          {/* Create new card */}
-          <div className="gfm-empty" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, cursor: "pointer", minHeight: 300 }}
-            onClick={() => navigate("/budgets/create")}>
-            <div style={{ width: 52, height: 52, borderRadius: 14, background: "var(--gfm-amber-100)", color: "var(--gfm-amber-600)", display: "grid", placeItems: "center" }}>
-              <Plus size={24} />
+          {/* Create new card — only shown when online */}
+          {isOnline && (
+            <div
+              className="gfm-empty"
+              style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, cursor: "pointer", minHeight: 300 }}
+              onClick={() => navigate("/budgets/create")}
+            >
+              <div style={{ width: 52, height: 52, borderRadius: 14, background: "var(--gfm-amber-100)", color: "var(--gfm-amber-600)", display: "grid", placeItems: "center" }}>
+                <Plus size={24} />
+              </div>
+              <div style={{ fontWeight: 800, color: "var(--gfm-ink-900)", fontSize: 14 }}>Create a new budget</div>
+              <div style={{ fontSize: 12 }}>Start from template or blank</div>
             </div>
-            <div style={{ fontWeight: 800, color: "var(--gfm-ink-900)", fontSize: 14 }}>Create a new budget</div>
-            <div style={{ fontSize: 12 }}>Start from template or blank</div>
-          </div>
+          )}
         </div>
       )}
     </div>

@@ -1,25 +1,37 @@
 import { useState } from "react";
-import { Download, Activity, Wallet, Coins, Target } from "lucide-react";
+import { Download, Activity, Wallet, Coins, Target, WifiOff } from "lucide-react";
 import { useBudgets, useMonthlyExpenses, useRevenues, useExpenses } from "@/hooks/use-budgets";
+import { useOfflineFallback } from "@/hooks/use-offline-fallback";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 import { Stat, SectionHead, fmtK, pct, catColor } from "@/components/gfm/primitives";
 import { AreaLine, GroupedBars, Donut } from "@/components/gfm/charts";
 
 const YEAR = new Date().getFullYear();
 
 export default function Reports() {
-  const { data: budgets = [] }  = useBudgets();
-  const { data: monthly }  = useMonthlyExpenses(YEAR);
-  const { data: revenues = [] } = useRevenues();
-  const { data: expenses = [] } = useExpenses();
+  const isOnline = useOnlineStatus();
+  const { data: budgetsRaw }  = useBudgets();
+  const { data: monthlyRaw }  = useMonthlyExpenses(YEAR);
+  const { data: revenuesRaw } = useRevenues();
+  const { data: expensesRaw } = useExpenses();
 
-  const planned = budgets.reduce((s: number, b: any) => s + Number(b.planned ?? 0), 0);
-  const actual  = budgets.reduce((s: number, b: any) => s + Number(b.spent   ?? 0), 0);
-  const revenue = revenues.filter((r: any) => r.status === "paid").reduce((s: number, r: any) => s + Number(r.total ?? 0), 0);
+  const { data: budgets, usingCache, lastSynced } = useOfflineFallback(["budgets"], budgetsRaw, []);
+  const { data: monthly } = useOfflineFallback(["monthly-expenses", YEAR, undefined], monthlyRaw, null);
+  const { data: revenues } = useOfflineFallback(["revenues"], revenuesRaw, []);
+  const { data: expenses } = useOfflineFallback(["expenses"], expensesRaw, []);
+
+  const budgetList = budgets as any[];
+  const revenueList = revenues as any[];
+  const expenseList = expenses as any[];
+
+  const planned = budgetList.reduce((s: number, b: any) => s + Number(b.planned ?? 0), 0);
+  const actual  = budgetList.reduce((s: number, b: any) => s + Number(b.spent   ?? 0), 0);
+  const revenue = revenueList.filter((r: any) => r.status === "paid").reduce((s: number, r: any) => s + Number(r.total ?? 0), 0);
   const net     = revenue - actual;
   const utilPct = pct(actual, planned);
 
   const catTot: Record<string, { planned: number; actual: number }> = {};
-  expenses.forEach((e: any) => {
+  expenseList.forEach((e: any) => {
     const k = e.category_name ?? "Other";
     if (!catTot[k]) catTot[k] = { planned: 0, actual: 0 };
     catTot[k].actual += Number(e.amount ?? 0);
@@ -27,12 +39,12 @@ export default function Reports() {
   const groupedData = Object.entries(catTot).map(([k, v]) => ({ label: k.slice(0, 8), ...v }));
 
   const monthlyData = monthly && !Array.isArray(monthly)
-    ? Object.entries(monthly).map(([k, v]) => ({ m: k.slice(0, 3), v: Number(v) }))
+    ? Object.entries(monthly as Record<string, number>).map(([k, v]) => ({ m: k.slice(0, 3), v: Number(v) }))
     : Array.isArray(monthly)
       ? (monthly as any[]).map((m: any) => ({ m: String(m.month ?? m.m ?? "").slice(0, 3), v: Number(m.total ?? m.v ?? 0) }))
       : [];
 
-  const donutData = budgets.slice(0, 3).map((b: any, i: number) => ({
+  const donutData = budgetList.slice(0, 3).map((b: any, i: number) => ({
     v: Number(b.spent ?? 0),
     color: ["#16A34A", "#F59E0B", "#0EA5E9"][i] ?? "#9ca3af",
     label: b.name,
@@ -40,6 +52,12 @@ export default function Reports() {
 
   return (
     <div className="gfm-page">
+      {usingCache && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, fontSize: 12.5, fontWeight: 600, color: "#92400e" }}>
+          <WifiOff size={13} />Showing cached data · Last synced: {lastSynced}
+        </div>
+      )}
+
       <div className="gfm-page-head">
         <div>
           <h1 className="gfm-h1">Reports & analytics</h1>

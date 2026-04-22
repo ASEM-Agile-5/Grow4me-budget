@@ -1,42 +1,14 @@
-import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Wallet, Receipt, Coins, Activity, CalendarDays, ArrowUpRight, ArrowRight, WifiOff, Clock } from "lucide-react";
+import { Wallet, Receipt, Coins, Activity, CalendarDays, ArrowUpRight, ArrowRight, WifiOff } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { useDashboardSummary, useMonthlyExpenses, useExpenses, useRevenues } from "@/hooks/use-budgets";
 import { useOnlineStatus } from "@/hooks/use-online-status";
+import { useOfflineFallback } from "@/hooks/use-offline-fallback";
+import { timeAgo } from "@/lib/query-cache";
 import { Stat, Hero, PaceCard, SectionHead, fmtK, fmtC, pct, catColor } from "@/components/gfm/primitives";
 import { AreaLine, RadialBars, Donut } from "@/components/gfm/charts";
 
 const YEAR = new Date().getFullYear();
-const CACHE_KEY = "gfm_summary_cache";
-
-interface SummaryCache {
-  data: Record<string, any>;
-  cached_at: string;
-}
-
-function getSummaryCache(): SummaryCache | null {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function setSummaryCache(data: Record<string, any>): void {
-  localStorage.setItem(CACHE_KEY, JSON.stringify({ data, cached_at: new Date().toISOString() }));
-}
-
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins} min ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
-}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -44,40 +16,38 @@ export default function Dashboard() {
   const isOnline = useOnlineStatus();
   const firstName = user?.first_name ?? "there";
 
-  const { data: summary } = useDashboardSummary(YEAR);
+  const { data: summaryRaw } = useDashboardSummary(YEAR);
   const { data: monthly } = useMonthlyExpenses(YEAR);
-  const { data: expenses = [] } = useExpenses();
-  const { data: revenues = [] } = useRevenues();
+  const { data: expensesRaw } = useExpenses();
+  const { data: revenuesRaw } = useRevenues();
 
-  // Persist summary to cache whenever fresh data arrives
-  useEffect(() => {
-    if (summary && Object.keys(summary).length > 0) {
-      setSummaryCache(summary);
-    }
-  }, [summary]);
+  const { data: effectiveSummary, usingCache, lastSynced } = useOfflineFallback(
+    ["dashboard-summary", YEAR], summaryRaw, null
+  );
+  const { data: expenses } = useOfflineFallback(["expenses"], expensesRaw, []);
+  const { data: revenues } = useOfflineFallback(["revenues"], revenuesRaw, []);
 
-  // Use live data if available, fall back to cache when offline
-  const cache = getSummaryCache();
-  const effectiveSummary = summary ?? (isOnline ? null : cache?.data ?? null);
-  const usingCache = !summary && !!cache;
+  const expenseList = expenses as any[];
+  const revenueList = revenues as any[];
+  const summary = effectiveSummary as Record<string, any> | null;
 
-  const planned = Number(effectiveSummary?.["Total Budget"] ?? 0);
-  const revenue = Number(effectiveSummary?.["Revenue"] ?? 0);
-  const net     = Number(effectiveSummary?.["Net Profit"] ?? 0);
-  const actual  = expenses.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
-  const revPend = revenues.filter((r: any) => r.status !== "paid").reduce((s: number, r: any) => s + Number(r.total ?? 0), 0);
+  const planned = Number(summary?.["Total Budget"] ?? 0);
+  const revenue = Number(summary?.["Revenue"] ?? 0);
+  const net     = Number(summary?.["Net Profit"] ?? 0);
+  const actual  = expenseList.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
+  const revPend = revenueList.filter((r: any) => r.status !== "paid").reduce((s: number, r: any) => s + Number(r.total ?? 0), 0);
   const utilPct = pct(actual, planned);
   const expected = Math.round(planned * 0.45);
 
   const catTot: Record<string, number> = {};
-  expenses.forEach((e: any) => { catTot[e.category_name] = (catTot[e.category_name] || 0) + Number(e.amount ?? 0); });
+  expenseList.forEach((e: any) => { catTot[e.category_name] = (catTot[e.category_name] || 0) + Number(e.amount ?? 0); });
   const cats = Object.entries(catTot)
     .map(([k, v]) => ({ label: k, v, color: catColor(k) }))
     .sort((a, b) => b.v - a.v);
 
-  const recent = [...expenses].reverse().slice(0, 5);
+  const recent = [...expenseList].reverse().slice(0, 5);
   const monthlyData = monthly && !Array.isArray(monthly)
-    ? Object.entries(monthly).map(([k, v]) => ({ m: k.slice(0, 3), v: Number(v) }))
+    ? Object.entries(monthly as Record<string, number>).map(([k, v]) => ({ m: k.slice(0, 3), v: Number(v) }))
     : Array.isArray(monthly)
       ? (monthly as any[]).map((m: any) => ({ m: String(m.month ?? m.m ?? "").slice(0, 3), v: Number(m.total ?? m.v ?? 0) }))
       : [];
@@ -87,20 +57,15 @@ export default function Dashboard() {
     { label: "Revenue", pct: planned > 0 ? Math.min(pct(revenue, planned), 100) : 0, color: "#F59E0B" },
   ];
 
-  const noDataOffline = !isOnline && !cache && !summary;
+  const noDataOffline = !isOnline && !effectiveSummary;
 
   return (
     <div className="gfm-page">
       {/* Offline / cache banners */}
       {!isOnline && !noDataOffline && (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, fontSize: 13, fontWeight: 600, color: "#92400e" }}>
-          <WifiOff size={15} />
-          You're offline.
-          {usingCache && cache && (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, marginLeft: 4 }}>
-              <Clock size={12} />Last synced: {timeAgo(cache.cached_at)}
-            </span>
-          )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, fontSize: 12.5, fontWeight: 600, color: "#92400e" }}>
+          <WifiOff size={13} />
+          {usingCache ? `Showing cached data · Last synced: ${lastSynced}` : "You're offline."}
         </div>
       )}
 
@@ -114,16 +79,9 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Cached data label */}
-      {usingCache && cache && isOnline === false && (
-        <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--gfm-ink-400)", textAlign: "right" }}>
-          Showing cached data · Last synced: {timeAgo(cache.cached_at)}
-        </div>
-      )}
-
       <Hero
         name={firstName}
-        sub={`${effectiveSummary?.active_budgets ?? "—"} active budgets · ₵${(actual / 1000).toFixed(1)}k spent this season. Let's grow today.`}
+        sub={`${summary?.active_budgets ?? "—"} active budgets · ₵${(actual / 1000).toFixed(1)}k spent this season. Let's grow today.`}
         weather={{ t: 28, label: "Partly sunny · Accra" }}
         right={
           <>
@@ -138,7 +96,7 @@ export default function Dashboard() {
       <div className="gfm-grid gfm-grid-4">
         <Stat icon={<Wallet size={16} />}   tone="green" label="Total budget"   value={fmtK(planned)}  sub={usingCache ? "cached" : "across active farms"} />
         <Stat icon={<Receipt size={16} />}  tone="amber" label="Spent · season" value={fmtK(actual)}   sub={`${utilPct}% of plan`} />
-        <Stat icon={<Coins size={16} />}    tone="ink"   label="Revenue"        value={fmtK(revenue)}  sub={usingCache ? "cached · " + timeAgo(cache!.cached_at) : (revPend > 0 ? `${fmtK(revPend)} pending` : "season total")} delta={usingCache ? undefined : "8.4"} />
+        <Stat icon={<Coins size={16} />}    tone="ink"   label="Revenue"        value={fmtK(revenue)}  sub={usingCache ? `cached · ${lastSynced}` : (revPend > 0 ? `${fmtK(revPend)} pending` : "season total")} delta={usingCache ? undefined : "8.4"} />
         <Stat icon={<Activity size={16} />} tone={net >= 0 ? "green" : "pink"}  label="Net P&L"        value={(net >= 0 ? "+" : "−") + fmtK(Math.abs(net))} sub={usingCache ? "cached" : "season-to-date"} />
       </div>
 
@@ -160,7 +118,7 @@ export default function Dashboard() {
         </div>
 
         <div className="gfm-card gfm-card-p">
-          <SectionHead title="Budget overview" sub={usingCache ? `Cached · ${timeAgo(cache!.cached_at)}` : "Utilisation vs revenue"} />
+          <SectionHead title="Budget overview" sub={usingCache ? `Cached · ${lastSynced}` : "Utilisation vs revenue"} />
           <RadialBars data={radial} width={300} height={190} centerBig={fmtK(actual)} centerSub="Total spent" />
           <div style={{ display: "flex", gap: 12, justifyContent: "center", fontSize: 11, color: "var(--gfm-ink-600)", fontWeight: 600, flexWrap: "wrap", marginTop: 8 }}>
             {radial.map(r => (

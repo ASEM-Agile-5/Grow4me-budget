@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#16A34A" />
+  <title>You're Offline — GrowForMe</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --green:        #16A34A;
+      --green-dark:   #15803D;
+      --green-light:  #DCFCE7;
+      --green-muted:  #BBF7D0;
+      --bg:           #F7F6F2;
+      --surface:      #FFFFFF;
+      --text-primary: #1A1A1A;
+      --text-muted:   #6B7280;
+      --border:       #E5E4DF;
+      --radius:       16px;
+      --shadow:       0 4px 24px rgba(0,0,0,0.08);
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background-color: var(--bg);
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100dvh;
+      padding: 24px 16px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Card ─────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      max-width: 420px;
+      width: 100%;
+      padding: 40px 36px 36px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    /* ── Logo lockup ──────────────────────────────────────── */
+    .logo-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 32px;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--green);
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .logo-wordmark {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: -0.4px;
+      line-height: 1;
+    }
+
+    .logo-wordmark span {
+      color: var(--green);
+    }
+
+    /* ── WiFi-off illustration ───────────────────────────── */
+    .icon-wrap {
+      width: 88px;
+      height: 88px;
+      background: var(--green-light);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      flex-shrink: 0;
+    }
+
+    /* ── Heading & body ──────────────────────────────────── */
+    h1 {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--text-primary);
+      margin-bottom: 10px;
+      line-height: 1.25;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-muted);
+      line-height: 1.6;
+      max-width: 300px;
+      margin-bottom: 32px;
+    }
+
+    /* ── Tips list ───────────────────────────────────────── */
+    .tips {
+      width: 100%;
+      background: var(--green-light);
+      border: 1px solid var(--green-muted);
+      border-radius: 12px;
+      padding: 16px 20px;
+      text-align: left;
+      margin-bottom: 28px;
+    }
+
+    .tips-heading {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--green-dark);
+      margin-bottom: 10px;
+    }
+
+    .tips ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .tips ul li {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--green-dark);
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      line-height: 1.5;
+    }
+
+    .tips ul li::before {
+      content: '';
+      display: block;
+      width: 5px;
+      height: 5px;
+      background: var(--green);
+      border-radius: 50%;
+      margin-top: 6px;
+      flex-shrink: 0;
+    }
+
+    /* ── Actions ─────────────────────────────────────────── */
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: none;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 13px 20px;
+      transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+      text-decoration: none;
+      letter-spacing: -0.1px;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-primary {
+      background: var(--green);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(22, 163, 74, 0.30);
+    }
+
+    .btn-primary:hover {
+      background: var(--green-dark);
+      box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover {
+      background: var(--bg);
+      color: var(--text-primary);
+    }
+
+    /* ── Footer ──────────────────────────────────────────── */
+    footer {
+      margin-top: 28px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    footer strong {
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    /* ── Responsive ──────────────────────────────────────── */
+    @media (max-width: 480px) {
+      .card {
+        padding: 32px 24px 28px;
+      }
+
+      h1 {
+        font-size: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+
+    <!-- Logo -->
+    <div class="logo-wrap">
+      <div class="logo-icon">
+        <!-- Inline sprout SVG at 20px -->
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+             stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true">
+          <path d="M12 22V12"/>
+          <path d="M12 12C12 12 7 7 2 7 2 12 7 12 12 12"/>
+          <path d="M12 12C12 12 17 7 22 7 22 12 17 12 12 12"/>
+          <path d="M12 16c0 0 4-3 7-2"/>
+        </svg>
+      </div>
+      <div class="logo-wordmark">Grow<span>ForMe</span></div>
+    </div>
+
+    <!-- WiFi-off icon -->
+    <div class="icon-wrap" role="img" aria-label="No internet connection">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none"
+           stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+           aria-hidden="true">
+        <!-- Wifi arcs -->
+        <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+        <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+        <circle cx="12" cy="20" r="1" fill="#16A34A"/>
+        <!-- Slash line -->
+        <line x1="2" y1="2" x2="22" y2="22" stroke="#16A34A" stroke-width="2.2"/>
+      </svg>
+    </div>
+
+    <!-- Heading -->
+    <h1>You're offline</h1>
+    <p class="subtitle">
+      No internet connection detected. Check your network and try again — your farm data is waiting.
+    </p>
+
+    <!-- Tips -->
+    <div class="tips">
+      <div class="tips-heading">While you wait</div>
+      <ul>
+        <li>Check your Wi-Fi or mobile data settings</li>
+        <li>Move closer to your router or a signal area</li>
+        <li>Any data you entered is safely saved locally</li>
+      </ul>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="actions">
+      <button class="btn btn-primary" onclick="handleRetry(this)" type="button">
+        <!-- Refresh icon -->
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+          <path d="M3 3v5h5"/>
+        </svg>
+        Try again
+      </button>
+      <button class="btn btn-ghost" onclick="window.history.back()" type="button">
+        Go back
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <strong>GrowForMe</strong> &mdash; Track every cedi. Grow every season.
+  </footer>
+
+  <script>
+    function handleRetry(btn) {
+      const original = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+             style="animation: spin 0.7s linear infinite;" aria-hidden="true">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+          <path d="M3 3v5h5"/>
+        </svg>
+        Checking…
+      `;
+
+      // Try to fetch the root; if it succeeds we're back online
+      fetch('/', { method: 'HEAD', cache: 'no-store' })
+        .then(() => {
+          window.location.href = '/';
+        })
+        .catch(() => {
+          btn.disabled = false;
+          btn.innerHTML = original;
+        });
+    }
+
+    // Auto-reload when the browser detects the connection is restored
+    window.addEventListener('online', () => {
+      window.location.href = '/';
+    });
+  </script>
+
+  <style>
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+
+</body>
+</html>

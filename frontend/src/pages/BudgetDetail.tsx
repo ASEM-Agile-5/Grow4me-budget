@@ -1,17 +1,23 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { ChevronRight, Download, Edit, Plus, Filter, MoreHorizontal } from "lucide-react";
+import { ChevronRight, Download, Edit, Plus, Filter, MoreHorizontal, WifiOff } from "lucide-react";
 import { useBudgetDetails, useBudgets } from "@/hooks/use-budgets";
+import { useOfflineFallback } from "@/hooks/use-offline-fallback";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 import { Stat, PaceCard, HBar, SectionHead, fmtK, fmtC, fmt, pct, catColor } from "@/components/gfm/primitives";
 import { Wallet, Receipt, Coins } from "lucide-react";
 
 export default function BudgetDetail() {
   const { budgetId } = useParams<{ budgetId: string }>();
   const navigate = useNavigate();
-  const { data: budgets = [] } = useBudgets();
-  const { data: details, isLoading } = useBudgetDetails(budgetId ?? null);
+  const isOnline = useOnlineStatus();
+  const { data: budgetsRaw } = useBudgets();
+  const { data: detailsRaw, isLoading } = useBudgetDetails(budgetId ?? null);
 
-  const budget = budgets.find((b: any) => b.id?.toString() === budgetId?.toString());
-  const items: any[] = details?.items ?? details?.budget_items ?? [];
+  const { data: budgets, usingCache, lastSynced } = useOfflineFallback(["budgets"], budgetsRaw, []);
+  const { data: details } = useOfflineFallback(["budget-details", budgetId], detailsRaw, null);
+
+  const budget = (budgets as any[]).find((b: any) => b.id?.toString() === budgetId?.toString());
+  const items: any[] = (details as any)?.items ?? (details as any)?.budget_items ?? [];
 
   const planned  = Number(budget?.planned ?? 0);
   const actual   = Number(budget?.spent   ?? 0);
@@ -19,7 +25,7 @@ export default function BudgetDetail() {
   const utilPct  = pct(actual, planned);
   const expected = Math.round(planned * 0.67);
 
-  if (isLoading) return (
+  if (isLoading && !items.length && !budget) return (
     <div className="gfm-page" style={{ placeItems: "center" }}>
       <div className="gfm-spinner" style={{ width: 36, height: 36 }} />
     </div>
@@ -27,6 +33,12 @@ export default function BudgetDetail() {
 
   return (
     <div className="gfm-page">
+      {usingCache && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, fontSize: 12.5, fontWeight: 600, color: "#92400e" }}>
+          <WifiOff size={13} />Showing cached data · Last synced: {lastSynced}
+        </div>
+      )}
+
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--gfm-ink-500)", marginBottom: 10 }}>
           <button style={{ background: "none", border: 0, color: "inherit", padding: 0, cursor: "pointer", fontWeight: 600 }}
@@ -40,9 +52,9 @@ export default function BudgetDetail() {
             <div className="gfm-h1-sub">{budget?.description ?? `${budget?.project} · ${budget?.year}`}</div>
           </div>
           <div className="gfm-page-actions">
-            <button className="gfm-btn gfm-btn-ghost"><Download size={13} />Export</button>
-            <button className="gfm-btn gfm-btn-ghost"><Edit size={13} />Edit</button>
-            <button className="gfm-btn gfm-btn-primary"><Plus size={13} />Add line item</button>
+            <button className="gfm-btn gfm-btn-ghost" disabled={!isOnline}><Download size={13} />Export</button>
+            <button className="gfm-btn gfm-btn-ghost" disabled={!isOnline}><Edit size={13} />Edit</button>
+            <button className="gfm-btn gfm-btn-primary" disabled={!isOnline}><Plus size={13} />Add line item</button>
           </div>
         </div>
       </div>

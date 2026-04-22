@@ -1,4 +1,5 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, QueryCache } from "@tanstack/react-query";
+import { setCacheEntry } from "@/lib/query-cache";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -20,7 +21,15 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import { useEffect } from "react";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onSuccess: (data, query) => {
+      if (data !== undefined && data !== null) {
+        setCacheEntry(query.queryKey as unknown[], data);
+      }
+    },
+  }),
+});
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading, refetchUser } = useUser();

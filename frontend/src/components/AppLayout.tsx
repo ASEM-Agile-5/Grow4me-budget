@@ -3,11 +3,15 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Wallet, Receipt, TrendingUp, BarChart3,
   Package, CheckSquare, Sprout, Settings, HelpCircle, LogOut,
-  Search, Bell, Plus, Menu, X, ChevronRight,
+  Search, Bell, Plus, Menu, X, ChevronRight, WifiOff, RefreshCw,
 } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { setCookie } from "@/services/services";
 import { useBudgets } from "@/hooks/use-budgets";
+import { useOnlineStatus } from "@/hooks/use-online-status";
+import { useOfflineExpenseQueue } from "@/hooks/use-offline-expense-queue";
+import { timeAgo } from "@/lib/query-cache";
+import { getCacheEntry } from "@/lib/query-cache";
 
 const NAV_MAIN = [
   { path: "/",          label: "Dashboard",  icon: LayoutDashboard },
@@ -41,6 +45,13 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useUser();
   const { data: budgets = [] } = useBudgets();
+  const isOnline = useOnlineStatus();
+  const { queue, syncQueue } = useOfflineExpenseQueue();
+  const pendingCount = queue.filter((q) => q.status === "pending").length;
+
+  // Last synced = most recent cache entry timestamp
+  const expensesCache = getCacheEntry(["expenses"]);
+  const lastSynced = expensesCache ? timeAgo(expensesCache.ts) : null;
 
   const handleLogout = () => {
     setCookie("access_token", "", -1);
@@ -150,6 +161,30 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
         }}
           id="mobile-ham"
         />
+
+        {/* Offline status bar */}
+        {!isOnline && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "7px 20px", background: "#78350f",
+            color: "#fef3c7", fontSize: 12, fontWeight: 700,
+            flexShrink: 0,
+          }}>
+            <WifiOff size={13} />
+            <span>Offline mode{lastSynced ? ` · Last synced ${lastSynced}` : ""}</span>
+            {pendingCount > 0 && (
+              <span style={{ marginLeft: 4 }}>· {pendingCount} expense{pendingCount > 1 ? "s" : ""} queued</span>
+            )}
+            {pendingCount > 0 && isOnline && (
+              <button
+                onClick={syncQueue}
+                style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "1px solid #fef3c7", borderRadius: 6, color: "#fef3c7", padding: "2px 8px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}
+              >
+                <RefreshCw size={11} />Sync now
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Content */}
         <main style={{ flex: 1 }}>{children}</main>
