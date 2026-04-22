@@ -24,6 +24,7 @@ function RecordSaleModal({ onClose }: { onClose: () => void }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!navigator.onLine) { toast.error("You need an internet connection to record a sale."); return; }
     if (!budgetId || !product || !quantity || !pricePerUnit || !buyer) {
       toast.error("Please fill in all required fields.");
       return;
@@ -196,7 +197,7 @@ export default function RevenuePage() {
         </div>
         <div className="gfm-page-actions">
           <button className="gfm-btn gfm-btn-ghost" onClick={() => exportRevenueCSV(list)}><Download size={13} />Export</button>
-          <button className="gfm-btn gfm-btn-primary" disabled={!isOnline} onClick={() => setShowModal(true)}><Plus size={13} />Record sale</button>
+          <button className="gfm-btn gfm-btn-primary" onClick={() => isOnline ? setShowModal(true) : toast.error("You need an internet connection to record a sale.")}><Plus size={13} />Record sale</button>
         </div>
       </div>
 

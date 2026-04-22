@@ -29,7 +29,7 @@ export default function Farms() {
           <div className="gfm-h1-sub">Every farm project you manage, active or archived.</div>
         </div>
         <div className="gfm-page-actions">
-          <button className="gfm-btn gfm-btn-primary" disabled={!isOnline} onClick={() => toast.info("Farm creation is managed from the admin dashboard. Contact your administrator to add a new farm.")}><Plus size={13} />New farm</button>
+          <button className="gfm-btn gfm-btn-primary" onClick={() => toast.info("Farm creation is managed from the admin dashboard. Contact your administrator to add a new farm.")}><Plus size={13} />New farm</button>
         </div>
       </div>
 
@@ -102,7 +102,7 @@ export default function Farms() {
           </div>
           <div style={{ fontWeight: 800, color: "var(--gfm-ink-900)", fontSize: 16, marginBottom: 6 }}>No farms yet</div>
           <div style={{ fontSize: 13, marginBottom: 18 }}>Add a farm to start tracking budgets and expenses.</div>
-          <button className="gfm-btn gfm-btn-primary" style={{ margin: "0 auto" }} disabled={!isOnline} onClick={() => toast.info("Farm creation is managed from the admin dashboard.")}><Plus size={13} />Create your first farm</button>
+          <button className="gfm-btn gfm-btn-primary" style={{ margin: "0 auto" }} onClick={() => toast.info("Farm creation is managed from the admin dashboard.")}><Plus size={13} />Create your first farm</button>
         </div>
       )}
     </div>

@@ -18,6 +18,7 @@ function AdjustStockModal({ items, onClose }: { items: any[]; onClose: () => voi
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!navigator.onLine) { toast.error("You need an internet connection to adjust stock."); return; }
     if (!itemId || !quantity) { toast.error("Select an item and enter a quantity."); return; }
     setSubmitting(true);
     try {
@@ -131,10 +132,12 @@ export default function Inventory() {
           <div className="gfm-h1-sub">Stock across farms, linked to budget line items.</div>
         </div>
         <div className="gfm-page-actions">
-          <button className="gfm-btn gfm-btn-ghost" disabled={!isOnline} onClick={() => setShowAdjust(true)}><Upload size={13} />Adjust stock</button>
+          <button
+            className="gfm-btn gfm-btn-ghost"
+            onClick={() => isOnline ? setShowAdjust(true) : toast.error("You need an internet connection to adjust stock.")}
+          ><Upload size={13} />Adjust stock</button>
           <button
             className="gfm-btn gfm-btn-primary"
-            disabled={!isOnline}
             onClick={() => toast.info("New inventory items are created from budget line items. Open a budget and add a line item with inventory tracking enabled.")}
           >
             <Plus size={13} />New item

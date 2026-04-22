@@ -5,6 +5,7 @@ import { useBudgets } from "@/hooks/use-budgets";
 import { useOfflineFallback } from "@/hooks/use-offline-fallback";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { PaceBar, HBar, fmtK, pct } from "@/components/gfm/primitives";
+import { toast } from "sonner";
 
 export default function Budgets() {
   const navigate = useNavigate();
@@ -39,9 +40,7 @@ export default function Budgets() {
           </div>
           <button
             className="gfm-btn gfm-btn-primary"
-            onClick={() => navigate("/budgets/create")}
-            disabled={!isOnline}
-            title={!isOnline ? "Go online to create a budget" : undefined}
+            onClick={() => isOnline ? navigate("/budgets/create") : toast.error("You need an internet connection to create a budget.")}
           >
             <Plus size={13} />New budget
           </button>
@@ -113,20 +112,17 @@ export default function Budgets() {
             );
           })}
 
-          {/* Create new card — only shown when online */}
-          {isOnline && (
-            <div
-              className="gfm-empty"
-              style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, cursor: "pointer", minHeight: 300 }}
-              onClick={() => navigate("/budgets/create")}
-            >
-              <div style={{ width: 52, height: 52, borderRadius: 14, background: "var(--gfm-amber-100)", color: "var(--gfm-amber-600)", display: "grid", placeItems: "center" }}>
-                <Plus size={24} />
-              </div>
-              <div style={{ fontWeight: 800, color: "var(--gfm-ink-900)", fontSize: 14 }}>Create a new budget</div>
-              <div style={{ fontSize: 12 }}>Start from template or blank</div>
+          <div
+            className="gfm-empty"
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, cursor: "pointer", minHeight: 300 }}
+            onClick={() => isOnline ? navigate("/budgets/create") : toast.error("You need an internet connection to create a budget.")}
+          >
+            <div style={{ width: 52, height: 52, borderRadius: 14, background: "var(--gfm-amber-100)", color: "var(--gfm-amber-600)", display: "grid", placeItems: "center" }}>
+              <Plus size={24} />
             </div>
-          )}
+            <div style={{ fontWeight: 800, color: "var(--gfm-ink-900)", fontSize: 14 }}>Create a new budget</div>
+            <div style={{ fontSize: 12 }}>{isOnline ? "Start from template or blank" : "Go online to create a budget"}</div>
+          </div>
         </div>
       )}
     </div>

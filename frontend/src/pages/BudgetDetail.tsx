@@ -44,6 +44,7 @@ function AddLineItemModal({ budgetId, onClose }: { budgetId: string; onClose: ()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!navigator.onLine) { toast.error("You need an internet connection to add line items."); return; }
     if (!categoryId || !plannedAmount) { toast.error("Category and planned amount are required."); return; }
     setSubmitting(true);
     try {
@@ -130,11 +131,12 @@ function AddLineItemModal({ budgetId, onClose }: { budgetId: string; onClose: ()
   );
 }
 
-function ItemMenu({ itemId, onDeleted }: { itemId: string; onDeleted: () => void }) {
+function ItemMenu({ itemId, isOnline, onDeleted }: { itemId: string; isOnline: boolean; onDeleted: () => void }) {
   const [open, setOpen] = useState(false);
   const deleteItem = useDeleteBudgetItem();
 
   const handleDelete = async () => {
+    if (!isOnline) { toast.error("You need an internet connection to delete items."); setOpen(false); return; }
     if (!confirm("Delete this line item? This cannot be undone.")) return;
     try {
       await deleteItem.mutateAsync(itemId);
@@ -226,7 +228,10 @@ export default function BudgetDetail() {
             <button className="gfm-btn gfm-btn-ghost" onClick={() => exportItemsCSV(items, budget?.name ?? "budget")}>
               <Download size={13} />Export CSV
             </button>
-            <button className="gfm-btn gfm-btn-primary" disabled={!isOnline} onClick={() => setShowAddItem(true)}>
+            <button
+              className="gfm-btn gfm-btn-primary"
+              onClick={() => isOnline ? setShowAddItem(true) : toast.error("You need an internet connection to add line items.")}
+            >
               <Plus size={13} />Add line item
             </button>
           </div>
@@ -285,7 +290,7 @@ export default function BudgetDetail() {
                         </span>
                       </td>
                       <td style={{ paddingRight: 20 }}>
-                        {isOnline && <ItemMenu itemId={item.id?.toString()} onDeleted={() => refetch()} />}
+                        <ItemMenu itemId={item.id?.toString()} isOnline={isOnline} onDeleted={() => refetch()} />
                       </td>
                     </tr>
                   );
