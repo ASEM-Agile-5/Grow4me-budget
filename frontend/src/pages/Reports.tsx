@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, Activity, Wallet, Coins, Target, WifiOff } from "lucide-react";
+import { Download, Activity, Wallet, Coins, Target, WifiOff, Printer } from "lucide-react";
 import { useBudgets, useMonthlyExpenses, useRevenues, useExpenses } from "@/hooks/use-budgets";
 import { useOfflineFallback } from "@/hooks/use-offline-fallback";
 import { useOnlineStatus } from "@/hooks/use-online-status";
@@ -69,7 +69,7 @@ export default function Reports() {
             <button>YTD</button>
             <button>12 mo</button>
           </div>
-          <button className="gfm-btn gfm-btn-ghost"><Download size={13} />PDF</button>
+          <button className="gfm-btn gfm-btn-ghost" onClick={() => window.print()}><Printer size={13} />Print / PDF</button>
         </div>
       </div>
 

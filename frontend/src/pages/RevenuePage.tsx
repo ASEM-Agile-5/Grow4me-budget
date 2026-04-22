@@ -150,6 +150,13 @@ function exportRevenueCSV(revenues: any[]) {
   URL.revokeObjectURL(url);
 }
 
+// Backend may return `total` or require computing from quantity * price_per_unit
+const revTotal = (r: any): number =>
+  Number(r.total ?? (Number(r.quantity ?? 0) * Number(r.price_per_unit ?? 0)));
+
+// Backend may return `payment_status` or `status`
+const revStatus = (r: any): string => r.status ?? r.payment_status ?? "pending";
+
 export default function RevenuePage() {
   const isOnline = useOnlineStatus();
   const { data: revenuesRaw, isLoading } = useRevenues();
@@ -158,19 +165,19 @@ export default function RevenuePage() {
   const [showModal, setShowModal] = useState(false);
 
   const list = [...(revenues as any[])].reverse();
-  const totalSum = list.reduce((s: number, r: any) => s + Number(r.total ?? 0), 0);
-  const paid     = list.filter((r: any) => r.status === "paid").reduce((s: number, r: any) => s + Number(r.total ?? 0), 0);
+  const totalSum = list.reduce((s: number, r: any) => s + revTotal(r), 0);
+  const paid     = list.filter((r: any) => revStatus(r) === "paid").reduce((s: number, r: any) => s + revTotal(r), 0);
   const pend     = totalSum - paid;
   const paidPct  = pct(paid, totalSum);
 
   const topBuyer = (() => {
     const m: Record<string, number> = {};
-    list.forEach((r: any) => { m[r.buyer ?? "Unknown"] = (m[r.buyer ?? "Unknown"] || 0) + Number(r.total ?? 0); });
+    list.forEach((r: any) => { m[r.buyer ?? "Unknown"] = (m[r.buyer ?? "Unknown"] || 0) + revTotal(r); });
     const sorted = Object.entries(m).sort((a, b) => b[1] - a[1]);
     return sorted[0];
   })();
 
-  const filtered = filter === "all" ? list : list.filter((r: any) => r.status === filter);
+  const filtered = filter === "all" ? list : list.filter((r: any) => revStatus(r) === filter);
 
   return (
     <div className="gfm-page">
@@ -196,7 +203,7 @@ export default function RevenuePage() {
       <div className="gfm-grid gfm-grid-4">
         <Stat icon={<Coins size={16} />}       tone="green" label="Total revenue" value={fmtK(totalSum)} sub={`${list.length} sales`} delta="12.4" />
         <Stat icon={<CheckCircle size={16} />} tone="green" label="Received"      value={fmtK(paid)}     sub={`${paidPct}% of total`} />
-        <Stat icon={<Activity size={16} />}    tone="amber" label="Pending"       value={fmtK(pend)}     sub={`${list.filter((r: any) => r.status !== "paid").length} buyers`} />
+        <Stat icon={<Activity size={16} />}    tone="amber" label="Pending"       value={fmtK(pend)}     sub={`${list.filter((r: any) => revStatus(r) !== "paid").length} buyers`} />
         <Stat icon={<Target size={16} />}      tone="ink"   label="Top buyer"
           value={topBuyer ? topBuyer[0] : "—"} sub={topBuyer ? `${fmtC(topBuyer[1])}` : "No data"} />
       </div>
@@ -242,10 +249,10 @@ export default function RevenuePage() {
                     <td className="gfm-muted">{r.buyer ?? "—"}</td>
                     <td><span className="gfm-badge">{r.budget_name ?? "—"}</span></td>
                     <td className="gfm-num" style={{ textAlign: "right" }}>{r.quantity ?? "—"}</td>
-                    <td className="gfm-num" style={{ textAlign: "right", fontWeight: 800 }}>{fmtC(Number(r.total))}</td>
+                    <td className="gfm-num" style={{ textAlign: "right", fontWeight: 800 }}>{fmtC(revTotal(r))}</td>
                     <td style={{ paddingRight: 20 }}>
-                      <span className={`gfm-badge ${r.status === "paid" ? "ok" : "warn"}`}>
-                        <span className="dot" />{r.status}
+                      <span className={`gfm-badge ${revStatus(r) === "paid" ? "ok" : "warn"}`}>
+                        <span className="dot" />{revStatus(r)}
                       </span>
                     </td>
                   </tr>

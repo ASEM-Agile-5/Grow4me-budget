@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Plus, CalendarDays, Flag, Sprout } from "lucide-react";
+import { toast } from "sonner";
 
 const MOCK_TASKS = [
   { id: "t1", title: "Third weeding",          project: "Maize Farm",   due: "2026-04-25", assignee: "Kwabena", status: "upcoming",  priority: "med"  },
@@ -32,7 +33,7 @@ export default function Tasks() {
             <button>List</button>
             <button>Calendar</button>
           </div>
-          <button className="gfm-btn gfm-btn-primary"><Plus size={13} />Add task</button>
+          <button className="gfm-btn gfm-btn-primary" onClick={() => toast.info("Task creation coming soon — tasks will be linked to farms and budgets.")}><Plus size={13} />Add task</button>
         </div>
       </div>
 

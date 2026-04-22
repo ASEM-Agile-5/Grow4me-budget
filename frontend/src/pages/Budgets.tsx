@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Filter, Sprout, ArrowRight, WifiOff } from "lucide-react";
+import { Plus, Sprout, ArrowRight, WifiOff } from "lucide-react";
 import { useBudgets } from "@/hooks/use-budgets";
 import { useOfflineFallback } from "@/hooks/use-offline-fallback";
 import { useOnlineStatus } from "@/hooks/use-online-status";
@@ -10,10 +11,12 @@ export default function Budgets() {
   const isOnline = useOnlineStatus();
   const { data: budgetsRaw, isLoading } = useBudgets();
   const { data: budgets, usingCache, lastSynced } = useOfflineFallback(["budgets"], budgetsRaw, []);
+  const [tab, setTab] = useState<"active" | "all" | "closed">("active");
 
-  const active = (budgets as any[]).filter(
-    (b: any) => b.status !== "closed" && b.status !== "archived"
-  );
+  const all = budgets as any[];
+  const active = tab === "all" ? all
+    : tab === "closed" ? all.filter((b: any) => b.status === "closed" || b.status === "archived")
+    : all.filter((b: any) => b.status !== "closed" && b.status !== "archived");
 
   return (
     <div className="gfm-page">
@@ -30,11 +33,10 @@ export default function Budgets() {
         </div>
         <div className="gfm-page-actions">
           <div className="gfm-seg">
-            <button className="active">Active</button>
-            <button>All</button>
-            <button>Closed</button>
+            <button className={tab === "active" ? "active" : ""} onClick={() => setTab("active")}>Active</button>
+            <button className={tab === "all"    ? "active" : ""} onClick={() => setTab("all")}>All</button>
+            <button className={tab === "closed" ? "active" : ""} onClick={() => setTab("closed")}>Closed</button>
           </div>
-          <button className="gfm-btn gfm-btn-ghost"><Filter size={13} />Filter</button>
           <button
             className="gfm-btn gfm-btn-primary"
             onClick={() => navigate("/budgets/create")}
@@ -50,7 +52,7 @@ export default function Budgets() {
         <div style={{ display: "grid", placeItems: "center", padding: 48 }}>
           <div className="gfm-spinner" />
         </div>
-      ) : !isOnline && budgets.length === 0 ? (
+      ) : !isOnline && all.length === 0 ? (
         <div className="gfm-empty" style={{ padding: "56px 28px" }}>
           <WifiOff size={28} style={{ margin: "0 auto 12px", color: "var(--gfm-ink-400)" }} />
           <div style={{ fontWeight: 800, marginBottom: 6 }}>No data available offline</div>

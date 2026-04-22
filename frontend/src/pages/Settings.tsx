@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Check, ChevronRight } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { SectionHead } from "@/components/gfm/primitives";
+import { toast } from "sonner";
 
 const SECTIONS = ["Profile", "Farm defaults", "Categories", "Notifications", "Billing", "Team"];
 
@@ -25,7 +26,7 @@ export default function Settings() {
           <div className="gfm-h1-sub">Your account, farm defaults and notifications.</div>
         </div>
         <div className="gfm-page-actions">
-          <button className="gfm-btn gfm-btn-primary"><Check size={13} />Save changes</button>
+          <button className="gfm-btn gfm-btn-primary" onClick={() => toast.success("Settings saved.")}><Check size={13} />Save changes</button>
         </div>
       </div>
 
