@@ -11,6 +11,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -19,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { expenseCategories } from "@/lib/mock-data";
+import { toast } from "sonner";
 
 import {
   useBudgets,
@@ -45,6 +56,7 @@ const Expenses = () => {
   const [filterBudget, setFilterBudget] = useState("all");
   const [filterYear, setFilterYear] = useState("all");
   const [isSaving, setIsSaving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const [form, setForm] = useState({
     budgetId: "",
@@ -52,7 +64,7 @@ const Expenses = () => {
     amount: "",
     date: new Date().toISOString().split("T")[0],
     notes: "",
-    inventoryQuantity: "",
+    quantity: "",
   });
 
   // Fetch details for the budget selected in the ADD FORM to populate "Budget Item / Category"
@@ -111,12 +123,17 @@ const Expenses = () => {
 
   const matchedInventoryItem = availableItems.find(
     (bi: any) =>
-      bi.id.toString() === form.budgetItemId.toString() && bi.trackInventory,
+      bi.id?.toString() === form.budgetItemId?.toString() && bi.trackInventory,
   );
 
-  const handleSave = async () => {
+  const handleReview = () => {
     if (!form.budgetId || !form.budgetItemId || !form.amount || !form.date)
       return;
+    setConfirmOpen(true);
+  };
+
+  const handleSave = async () => {
+    setConfirmOpen(false);
     setIsSaving(true);
     try {
       await createExpenseMutation.mutateAsync({
@@ -125,8 +142,8 @@ const Expenses = () => {
         date: form.date,
         notes: form.notes,
         quantity:
-          matchedInventoryItem && form.inventoryQuantity
-            ? Number(form.inventoryQuantity)
+          matchedInventoryItem && form.quantity
+            ? Number(form.quantity)
             : undefined,
       });
       setForm({
@@ -135,11 +152,12 @@ const Expenses = () => {
         amount: "",
         date: new Date().toISOString().split("T")[0],
         notes: "",
-        inventoryQuantity: "",
+        quantity: "",
       });
       setDialogOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to save expense:", err);
+      toast.error(err?.response?.data?.message || "Failed to save expense.");
     } finally {
       setIsSaving(false);
     }
@@ -277,11 +295,11 @@ const Expenses = () => {
                         id="expense-inventory-qty"
                         type="number"
                         min={0}
-                        value={form.inventoryQuantity}
+                        value={form.quantity}
                         onChange={(e) =>
                           setForm((f) => ({
                             ...f,
-                            inventoryQuantity: e.target.value,
+                            quantity: e.target.value,
                           }))
                         }
                         placeholder="e.g. 10"
@@ -293,7 +311,7 @@ const Expenses = () => {
                 <Button
                   id="save-expense-btn"
                   className="w-full"
-                  onClick={handleSave}
+                  onClick={handleReview}
                   disabled={isSaving}
                 >
                   {isSaving ? "Saving..." : "Save Expense"}
@@ -425,6 +443,21 @@ const Expenses = () => {
           </table>
         </div>
       </div>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You will be unable to make changes to the details of this expense after submission. Are you sure you want to finalize this transaction?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSave}>Continue</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

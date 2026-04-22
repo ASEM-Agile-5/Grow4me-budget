@@ -7,7 +7,21 @@ import {
   Trash2,
   FileText,
   Receipt,
+  Wallet,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
+import StatCard from "@/components/StatCard";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,12 +40,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { useUser } from "@/contexts/UserContext";
 import {
   useBudgets,
   useSelectedBudget,
   useBudgetDetails,
   useRecentExpenses,
   useAddBudgetItem,
+  useDeleteBudgetItem,
   BudgetItem,
 } from "@/hooks/use-budgets";
 import { getBudgetCategoriesAPI } from "@/services/services";
@@ -40,6 +57,7 @@ import { inventoryUnits } from "@/lib/mock-data";
 const BudgetDetail = () => {
   const { budgetId } = useParams<{ budgetId: string }>();
   const navigate = useNavigate();
+  const { user } = useUser();
   const { setSelectedBudgetId } = useSelectedBudget();
 
   const { data: budgets = [], isLoading: budgetsLoading } = useBudgets();
@@ -50,6 +68,7 @@ const BudgetDetail = () => {
     budgetId || null,
   );
   const addBudgetItemMutation = useAddBudgetItem();
+  const deleteItemMutation = useDeleteBudgetItem();
 
   const loading = budgetsLoading || detailsLoading || expensesLoading;
 
@@ -100,6 +119,8 @@ const BudgetDetail = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<BudgetItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
   // Expenses modal state
   const [expenseViewItem, setExpenseViewItem] = useState<BudgetItem | null>(
@@ -183,10 +204,31 @@ const BudgetDetail = () => {
       setForm(emptyForm);
       setEditItem(null);
       setDialogOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      toast.error(err?.response?.data?.message || "Failed to save budget item.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleOpenDeleteDialog = (itemId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setItemToDelete(itemId);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
+    try {
+      await deleteItemMutation.mutateAsync(itemToDelete);
+      toast.success("Budget item deleted successfully");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Failed to delete budget item.");
+    } finally {
+      setDeleteConfirmOpen(false);
+      setItemToDelete(null);
     }
   };
 
@@ -228,7 +270,7 @@ const BudgetDetail = () => {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{budget.name}</h1>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+              <span className="rounded-md finance-gradient px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider shadow-sm">
                 {budget.project}
               </span>
               <span className="text-sm text-muted-foreground">
@@ -421,7 +463,7 @@ const BudgetDetail = () => {
                 <div className="grid grid-cols-3 gap-3">
                   <div className="rounded-lg border p-3 text-center">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                      Planned
+                      Planned Amount
                     </p>
                     <p className="text-lg font-bold">
                       GHS {detailItem.planned_amount.toLocaleString()}
@@ -429,7 +471,7 @@ const BudgetDetail = () => {
                   </div>
                   <div className="rounded-lg border p-3 text-center">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                      Actual
+                      Actual Amount
                     </p>
                     <p className="text-lg font-bold text-warning">
                       GHS {detailItem.spent.toLocaleString()}
@@ -462,8 +504,8 @@ const BudgetDetail = () => {
                         ? (
                             (detailItem.spent / detailItem.planned_amount) *
                             100
-                          ).toFixed(0)
-                        : 0}
+                          ).toFixed(2)
+                        : "0.00"}
                       %
                     </span>
                   </div>
@@ -578,32 +620,27 @@ const BudgetDetail = () => {
 
       {/* Summary cards */}
       <div className="grid gap-4 sm:grid-cols-3">
-        {/* <div className="rounded-xl border bg-card p-4">
-          <p className="text-xs text-muted-foreground">Total Budget</p>
-          <p className="text-xl font-bold">
-            GHS {totalPlanned.toLocaleString()}
-          </p>
-        </div> */}
-        <div className="rounded-xl border bg-card p-4">
-          <p className="text-xs text-muted-foreground">Total Planned</p>
-          <p className="text-xl font-bold">
-            GHS {totalPlanned.toLocaleString()}
-          </p>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <p className="text-xs text-muted-foreground">Total Spent</p>
-          <p className="text-xl font-bold text-warning">
-            GHS {totalSpent.toLocaleString()}
-          </p>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <p className="text-xs text-muted-foreground">Variance</p>
-          <p
-            className={`text-xl font-bold ${variance >= 0 ? "text-success" : "text-destructive"}`}
-          >
-            GHS {variance.toLocaleString()}
-          </p>
-        </div>
+        <StatCard
+          title="Total Planned"
+          value={`GHS ${totalPlanned.toLocaleString()}`}
+          subtitle="Budgeted baseline"
+          icon={Wallet}
+          variant="hero"
+        />
+        <StatCard
+          title="Total Spent"
+          value={`GHS ${totalSpent.toLocaleString()}`}
+          subtitle={`${((totalSpent / (totalPlanned || 1)) * 100).toFixed(1)}% utilization`}
+          icon={Receipt}
+          variant="warning"
+        />
+        <StatCard
+          title="Variance"
+          value={`GHS ${variance.toLocaleString()}`}
+          subtitle={variance >= 0 ? "Under budget" : "Over budget"}
+          icon={variance >= 0 ? TrendingUp : TrendingDown}
+          variant="purple"
+        />
       </div>
 
       {/* Budget items table */}
@@ -617,13 +654,13 @@ const BudgetDetail = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="pb-3 font-medium">Category</th>
-                  <th className="pb-3 font-medium text-right">Planned</th>
-                  <th className="pb-3 font-medium text-right">Actual</th>
-                  <th className="pb-3 font-medium text-right">Variance</th>
-                  <th className="pb-3 font-medium text-right">Status</th>
-                  <th className="pb-3 font-medium text-right">Actions</th>
+                <tr className="border-b text-left text-muted-foreground/60">
+                  <th className="pb-4 font-bold text-[10px] uppercase tracking-widest px-2">Category</th>
+                  <th className="pb-4 font-bold text-[10px] uppercase tracking-widest text-right">Planned</th>
+                  <th className="pb-4 font-bold text-[10px] uppercase tracking-widest text-right">Actual</th>
+                  <th className="pb-4 font-bold text-[10px] uppercase tracking-widest text-right">Variance</th>
+                  <th className="pb-4 font-bold text-[10px] uppercase tracking-widest text-right">Status</th>
+                  <th className="pb-4 font-bold text-[10px] uppercase tracking-widest text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -650,7 +687,7 @@ const BudgetDetail = () => {
                       ? "bg-destructive"
                       : pct > 75
                         ? "bg-warning"
-                        : "bg-primary";
+                        : "bg-primary neon-glow-primary";
                   return (
                     <tr
                       key={b.id}
@@ -671,18 +708,18 @@ const BudgetDetail = () => {
                       >
                         {v >= 0 ? "+" : ""}GHS {v.toLocaleString()}
                       </td>
-                      <td className="py-3 text-right">
+                      <td className="py-4 text-right">
                         <div className="ml-auto flex flex-col items-end gap-1 w-32">
-                          <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                          <div className="h-1.5 w-full rounded-full bg-muted/40 overflow-hidden">
                             <div
-                              className={`h-full rounded-full transition-all ${barColor}`}
+                              className={`h-full rounded-full transition-all duration-1000 ${barColor}`}
                               style={{ width: `${Math.min(pct, 100)}%` }}
                             />
                           </div>
                           <span
-                            className={`text-[11px] font-medium ${statusColor}`}
+                            className={`text-[9px] font-bold tracking-tighter ${statusColor}`}
                           >
-                            {statusLabel} · {pct.toFixed(0)}%
+                            {statusLabel} · {pct.toFixed(1)}%
                           </span>
                         </div>
                       </td>
@@ -694,15 +731,14 @@ const BudgetDetail = () => {
                           >
                             <Edit2 className="h-3.5 w-3.5 text-muted-foreground" />
                           </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // deleteBudgetItem(b.id);
-                            }}
-                            className="rounded-md p-1.5 hover:bg-destructive/10 transition-colors"
-                          >
-                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                          </button>
+                          {user?.role === "ADMIN" && (
+                            <button
+                              onClick={(e) => handleOpenDeleteDialog(b.id, e)}
+                              className="rounded-md p-1.5 hover:bg-destructive/10 transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -754,6 +790,26 @@ const BudgetDetail = () => {
           </div>
         )}
       </div>
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Budget Item?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove this item from your budget. Any expenses already recorded against this item will remain, but the planned baseline will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Item
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

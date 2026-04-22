@@ -7,6 +7,7 @@ import {
   FolderOpen,
   Calendar,
   ArrowRight,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +20,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -26,6 +37,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { useUser } from "@/contexts/UserContext";
 import {
   useBudgets,
   useExpenses,
@@ -45,6 +58,7 @@ const emptyForm = {
 
 const Budgets = () => {
   const navigate = useNavigate();
+  const { user } = useUser();
   const {
     data: budgets = [],
     isLoading: budgetsLoading,
@@ -59,6 +73,8 @@ const Budgets = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editBudget, setEditBudget] = useState<any | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [budgetToDelete, setBudgetToDelete] = useState<string | null>(null);
   const [filterYear, setFilterYear] = useState<string>("all");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -87,8 +103,9 @@ const Budgets = () => {
         await createBudgetMutation.mutateAsync(data);
       }
       resetDialog();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to save budget:", err);
+      toast.error(err?.response?.data?.message || "Failed to save budget.");
     } finally {
       setIsSaving(false);
     }
@@ -108,9 +125,15 @@ const Budgets = () => {
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("Are you sure you want to delete this budget?")) {
-      // Placeholder for delete mutation
-    }
+    setBudgetToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!budgetToDelete) return;
+    // Placeholder for delete mutation
+    setDeleteConfirmOpen(false);
+    setBudgetToDelete(null);
   };
 
   const resetDialog = () => {
@@ -123,8 +146,6 @@ const Budgets = () => {
     setSelectedBudgetId(budget.id.toString());
     navigate(`/budgets/${budget.id}`);
   };
-
-
 
   if (loading && budgets.length === 0) {
     return (
@@ -158,10 +179,13 @@ const Budgets = () => {
             }}
           >
             <DialogTrigger asChild>
-              <Button id="create-budget-btn">
+              <Button id="create-budget-btn" variant="outline">
                 <Plus className="mr-2 h-4 w-4" /> New Budget
               </Button>
             </DialogTrigger>
+            <Button onClick={() => navigate("/budgets/create")}>
+              <FileText className="mr-2 h-4 w-4" /> Templates
+            </Button>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>
@@ -307,19 +331,19 @@ const Budgets = () => {
               <div
                 key={budget.id}
                 onClick={() => handleCardClick(budget)}
-                className="group relative rounded-xl border bg-card p-5 cursor-pointer transition-all duration-200 hover:shadow-lg hover:border-primary/40 hover:-translate-y-0.5"
+                className="group relative rounded-2xl border bg-card/40 backdrop-blur-md p-5 cursor-pointer transition-all duration-300 hover:shadow-2xl hover:bg-card/60 hover:border-primary/30 hover:-translate-y-1 border-white/5 stat-card-shadow"
               >
                 {/* Header */}
-                <div className="flex items-start justify-between mb-3">
+                <div className="flex items-start justify-between mb-4">
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-base truncate">
+                    <h3 className="font-bold text-lg leading-tight tracking-tight truncate">
                       {budget.name}
                     </h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[9px] font-bold text-primary uppercase tracking-widest">
                         {budget.project}
                       </span>
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
                         <Calendar className="h-3 w-3" />
                         {budget.year}
                       </span>
@@ -328,83 +352,99 @@ const Budgets = () => {
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={(e) => handleEdit(budget, e)}
-                      className="rounded-md p-1.5 hover:bg-muted transition-colors"
+                      className="rounded-lg p-1.5 hover:bg-muted transition-colors"
                     >
                       <Edit2 className="h-3.5 w-3.5 text-muted-foreground" />
                     </button>
-                    <button
-                      onClick={(e) => handleDelete(budget.id, e)}
-                      className="rounded-md p-1.5 hover:bg-destructive/10 transition-colors"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    </button>
+                    {user?.role === "ADMIN" && (
+                      <button
+                        onClick={(e) => handleDelete(budget.id, e)}
+                        className="rounded-lg p-1.5 hover:bg-destructive/10 transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </button>
+                    )}
                   </div>
                 </div>
 
                 {budget.description && (
-                  <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
+                  <p className="text-xs text-muted-foreground/80 mb-4 line-clamp-2 leading-relaxed">
                     {budget.description}
                   </p>
                 )}
 
-                {/* Financials */}
-                <div className="grid grid-cols-3 gap-2 mb-3 text-center">
-                  <div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                      Planned
+                {/* Financials - Simplified */}
+                <div className="flex items-end justify-between mb-4">
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">
+                      Spent / Planned
                     </p>
-                    <p className="text-sm font-bold">
-                      GHS {planned.toLocaleString()}
-                    </p>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-base font-bold text-foreground">
+                        GHS {spent.toLocaleString()}
+                      </span>
+                      <span className="text-xs text-muted-foreground/60">
+                        of GHS {planned.toLocaleString()}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                      Spent
+                  <div className="text-right">
+                    <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">
+                      Remaining
                     </p>
-                    <p className="text-sm font-bold text-warning">
-                      {spent.toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                      Left
-                    </p>
-                    <p
-                      className={`text-sm font-bold ${remaining >= 0 ? "text-success" : "text-destructive"}`}
-                    >
-                      {remaining.toLocaleString()}
+                    <p className={`text-sm font-bold ${remaining >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+                     {remaining >= 0 ? "+" : ""}GHS {remaining.toLocaleString()}
                     </p>
                   </div>
                 </div>
 
-                {/* Progress bar */}
-                <div className="relative">
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                {/* Progress bar - Ultra thin */}
+                <div className="space-y-1.5">
+                  <div className="h-1.5 rounded-full bg-muted/40 overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-500 ${
+                      className={`h-full rounded-full transition-all duration-1000 ${
                         pct > 100
                           ? "bg-destructive"
                           : pct > 80
-                            ? "bg-warning"
-                            : "bg-primary"
+                            ? "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"
+                            : "bg-primary shadow-[0_0_10px_rgba(59,130,246,0.5)]"
                       }`}
                       style={{ width: `${Math.min(pct, 100)}%` }}
                     />
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-1 text-right">
-                    {pct.toFixed(0)}% used
-                  </p>
-                </div>
-
-                {/* Click hint */}
-                <div className="flex items-center justify-end mt-2 text-xs text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                  View breakdown <ArrowRight className="h-3 w-3 ml-1" />
+                  <div className="flex justify-between items-center text-[10px] font-bold">
+                    <span className={pct > 100 ? "text-destructive" : pct > 80 ? "text-amber-500" : "text-primary"}>
+                      {pct.toFixed(1)}%
+                    </span>
+                    <span className="text-muted-foreground/40 font-medium">UTILIZATION</span>
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
       )}
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete this
+              budget and all its associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Configuration
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

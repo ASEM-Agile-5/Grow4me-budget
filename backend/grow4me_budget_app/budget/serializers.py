@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.db.models import Sum, Case, When, Value, F, IntegerField
 from decimal import Decimal
-from .models import Budget, BudgetCategory, BudgetItem, Expense, InventoryMovement, InventoryItem, Sale
+from .models import Budget, BudgetCategory, BudgetItem, Expense, InventoryMovement, InventoryItem, Sale, Template
 
 
 class CreateBudgetSerializer(serializers.ModelSerializer):
@@ -51,7 +51,6 @@ class BudgetDetailSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'year', 'description', 'total_planned', 'total_spent', 'variance', 'budget_items']
 
     def get_budget_items(self, obj):
-        from .serializers import CreateBudgetItemSerializer
         budget_items = BudgetItem.objects.filter(budget=obj)
         return CreateBudgetItemSerializer(budget_items, many=True).data
 
@@ -75,12 +74,20 @@ class BudgetCategorySerializer(serializers.ModelSerializer):
     """GET/POST for globally shared categories."""
     class Meta:
         model = BudgetCategory
-        fields = ['id', 'category_name']
-        read_only_fields = ['id']
+        fields = ['id', 'category_name', 'description']
+        read_only_fields = ['id', 'created_at']
+
+
+class BudgetTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Template
+        fields = ['id', 'name', 'description', 'icon', 'budget_items', 'created_at']
+        read_only_fields = ['id', 'created_at']
 
 
 class CreateBudgetItemSerializer(serializers.ModelSerializer):
     """POST budget item — budget ID in request body."""
+    id = serializers.UUIDField(read_only=True)
     category_id = serializers.SerializerMethodField()
     inventory = serializers.BooleanField(write_only=True, required=False, default=False)
     quantity = serializers.IntegerField(write_only=True, required=False, default=0)
@@ -90,8 +97,8 @@ class CreateBudgetItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = BudgetItem
         fields = [
-            'budget', 'category', 'category_id', 'planned_amount', 'spent',
-            'category_name', 'inventory', 'quantity', 'units'
+            'id', 'budget', 'category', 'category_id', 'planned_amount', 'spent',
+            'category_name', 'inventory', 'quantity', 'units', 'description'
         ]
         read_only_fields = ['category_name']
 
@@ -171,6 +178,28 @@ class SetMinimumStockSerializer(serializers.Serializer):
     """POST /budget/inventory/set-minimum — Set minimum stock threshold on InventoryItem."""
     inventory_item = serializers.UUIDField()
     minimum_stock = serializers.IntegerField(min_value=0)
+
+
+class InventoryHistorySerializer(serializers.ModelSerializer):
+    """GET /budget/inventory/history — Get history of inventory movements."""
+    budget_item_name = serializers.CharField(source='budget_item.category.category_name', read_only=True)
+    user = serializers.SerializerMethodField()
+
+    class Meta:
+        model = InventoryMovement
+        fields = ['id', 'budget_item', 'budget_item_name', 'action', 'quantity', 'notes', 'user', 'created_at']
+
+    def get_user(self, obj):
+        name = "Unknown"
+        if hasattr(obj.user, 'accounts'):
+            first = obj.user.accounts.first_name or ''
+            last = obj.user.accounts.last_name or ''
+            name = f"{first} {last}".strip() or obj.user.email
+        return {
+            "id": str(obj.user.id),
+            "name": name
+        }
+
 
 
 class InventoryListSerializer(serializers.ModelSerializer):

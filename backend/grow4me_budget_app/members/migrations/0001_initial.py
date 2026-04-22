@@ -1,5 +1,4 @@
 import django.db.models.deletion
-import django.utils.timezone
 import members.models
 import uuid
 from django.conf import settings
@@ -16,15 +15,22 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
+            name='Role',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('name', models.CharField(max_length=50, unique=True)),
+            ],
+        ),
+        migrations.CreateModel(
             name='User',
             fields=[
                 ('password', models.CharField(max_length=128, verbose_name='password')),
                 ('last_login', models.DateTimeField(blank=True, null=True, verbose_name='last login')),
-                ('is_superuser', models.BooleanField(default=False, help_text='Designates that this user has all permissions without explicitly assigning them.', verbose_name='superuser status')),
                 ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('email', models.EmailField(db_index=True, max_length=254, unique=True)),
                 ('is_active', models.BooleanField(default=True)),
                 ('is_staff', models.BooleanField(default=False)),
+                ('is_superuser', models.BooleanField(default=False)),
                 ('date_joined', models.DateTimeField(auto_now_add=True)),
                 ('groups', models.ManyToManyField(
                     blank=True,
@@ -62,6 +68,13 @@ class Migration(migrations.Migration):
                     on_delete=django.db.models.deletion.CASCADE,
                     related_name='accounts',
                     to=settings.AUTH_USER_MODEL,
+                )),
+                ('role', models.ForeignKey(
+                    blank=True,
+                    null=True,
+                    on_delete=django.db.models.deletion.SET_NULL,
+                    related_name='account_roles',
+                    to='members.role',
                 )),
             ],
         ),

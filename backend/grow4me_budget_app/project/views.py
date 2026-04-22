@@ -129,7 +129,7 @@ class CreateProjectView(views.APIView):
 
                 return Response({
                     "message": "Project created successfully",
-                    "projectId": str(project.project_id),
+                    "id": str(project.id),
                 }, status=status.HTTP_201_CREATED)
 
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -159,7 +159,7 @@ class AddUserToProjectView(views.APIView):
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
             user_id = payload['user_id']
             user = User.objects.get(id=user_id)
-            project = Projects.objects.get(project_id=project_id)
+            project = Projects.objects.get(id=project_id)
 
             membership, created = Membership.objects.get_or_create(
                 user=user,

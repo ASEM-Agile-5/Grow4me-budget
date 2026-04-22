@@ -12,8 +12,13 @@ import {
   FolderOpen,
   Package,
   LogOut,
+  Sun,
+  Moon,
+  LayoutGrid,
+  UserCircle,
 } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { setCookie } from "@/services/services";
 import { useBudgets, useSelectedBudget } from "@/hooks/use-budgets";
 
@@ -24,6 +29,7 @@ const navItems = [
   { path: "/inventory", label: "Inventory", icon: Package },
   { path: "/revenue", label: "Revenue", icon: TrendingUp },
   { path: "/reports", label: "Reports", icon: BarChart3 },
+  { path: "/apps", label: "Apps", icon: LayoutGrid },
 ];
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
@@ -32,8 +38,11 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { data: budgets = [] } = useBudgets();
   const { selectedBudgetId } = useSelectedBudget();
-  const selectedBudget = budgets.find((b: any) => b.id.toString() === selectedBudgetId?.toString());
+  const selectedBudget = budgets.find(
+    (b: any) => b.id.toString() === selectedBudgetId?.toString(),
+  );
   const { user } = useUser();
+  const { theme, toggleTheme } = useTheme();
 
   const handleLogout = () => {
     setCookie("access_token", "", -1); // Clear the cookie
@@ -52,13 +61,19 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col farm-gradient transition-transform duration-300 lg:relative lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col glass-sidebar transition-transform duration-300 lg:relative lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="flex h-16 items-center gap-3 px-6">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-accent">
-            <Sprout className="h-5 w-5 text-sidebar-primary" />
+          <div 
+            className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-300 ${
+              theme === "dark" 
+                ? "bg-gradient-to-br from-[#4e81f7] to-[#8c52ff] shadow-lg shadow-primary/20" 
+                : "bg-sidebar-accent"
+            }`}
+          >
+            <Sprout className={`h-5 w-5 ${theme === "dark" ? "text-black" : "text-sidebar-primary"}`} />
           </div>
           <span className="text-lg font-bold text-sidebar-foreground">
             FarmBudget
@@ -136,7 +151,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
 
       {/* Main content */}
       <div className="flex flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-card/80 backdrop-blur-md px-4 lg:px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/50 backdrop-blur-xl px-4 lg:px-6">
           <button
             className="lg:hidden text-foreground"
             onClick={() => setSidebarOpen(true)}
@@ -144,23 +159,38 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex-1" />
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex flex-col items-end">
-              <div className="text-sm font-medium">
-                {user?.first_name} {user?.last_name}
-              </div>
-              <div className="text-xs text-muted-foreground">{user?.email}</div>
-            </div>
-            <div className="h-9 w-9 rounded-full farm-gradient flex items-center justify-center text-white text-xs font-semibold shadow-sm overflow-hidden">
-              {user?.first_name?.[0] || ""}{user?.last_name?.[0] || "U"}
-            </div>
+          <div className="flex items-center gap-2">
             <button
-              onClick={handleLogout}
-              className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors group"
-              title="Logout"
+              onClick={toggleTheme}
+              className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
+              title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
             >
-              <LogOut className="h-5 w-5" />
+              {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
             </button>
+            <div className="flex items-center gap-4 border-l pl-4">
+              <Link 
+                to="/profile" 
+                className="flex items-center gap-3 p-1 rounded-xl hover:bg-muted transition-all duration-300 group"
+              >
+                <div className="hidden sm:flex flex-col items-end">
+                  <div className="text-sm font-semibold group-hover:text-primary transition-colors">
+                    {user?.first_name} {user?.last_name}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">{user?.email}</div>
+                </div>
+                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs font-bold shadow-lg overflow-hidden border border-white/20 group-hover:scale-105 transition-transform">
+                  {user?.first_name?.[0] || ""}
+                  {user?.last_name?.[0] || "U"}
+                </div>
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors group"
+                title="Logout"
+              >
+                <LogOut className="h-5 w-5" />
+              </button>
+            </div>
           </div>
         </header>
 

@@ -12,9 +12,13 @@ import Expenses from "./pages/Expenses";
 import Inventory from "./pages/Inventory";
 import RevenuePage from "./pages/RevenuePage";
 import Reports from "./pages/Reports";
+import CreateBudget from "./pages/CreateBudget";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
+import Apps from "./pages/Apps";
+import Profile from "./pages/Profile";
 import { useEffect } from "react";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 
 const queryClient = new QueryClient();
 
@@ -45,10 +49,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <UserProvider>
+    <ThemeProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <UserProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -65,6 +70,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Budgets />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/budgets/create"
+              element={
+                <ProtectedRoute>
+                  <CreateBudget />
                 </ProtectedRoute>
               }
             />
@@ -108,11 +121,28 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/apps"
+              element={
+                <ProtectedRoute>
+                  <Apps />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
-      </UserProvider>
-    </TooltipProvider>
+        </UserProvider>
+      </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

@@ -43,13 +43,14 @@ jobs:
             --allow-unauthenticated \
             --add-cloudsql-instances ${{ secrets.GCP_PROJECT_ID }}:us-central1:grow4me-db \
             --set-env-vars "CLOUD_SQL_CONNECTION_NAME=${{ secrets.GCP_PROJECT_ID }}:us-central1:grow4me-db,DB_NAME=grow4me_budget,DB_USER=postgres" \
-            --set-secrets "SECRET_KEY=django-secret-key:latest,DB_PASSWORD=db-password:latest" \
+            --set-secrets "SECRET_KEY=django-secret-key:latest,DB_PASSWORD=db-password:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest" \
             --project ${{ secrets.GCP_PROJECT_ID }}
 
       - name: Run Migrations
         run: |
           gcloud run jobs update run-migrations \
             --image us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/grow4me-backend/api:latest \
+            --args="manage.py,migrate" \
             --region us-central1 \
             --project ${{ secrets.GCP_PROJECT_ID }}
           gcloud run jobs execute run-migrations \

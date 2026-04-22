@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from .serializers import RegisterSerializer, LoginSerializer, UserSerializer
 import jwt, datetime
 from django.conf import settings
-from .models import User, Accounts
+from .models import User, Accounts, Role
 from django.db.models import Sum
 
 class RegisterView(views.APIView):
@@ -106,3 +106,45 @@ class LogoutView(views.APIView):
         }, status=status.HTTP_200_OK)
         response.delete_cookie('token')
         return response
+
+
+        
+class UpdateUserRoleView(views.APIView):
+    """POST /members/update-role/ — Change a user's role (ADMIN only)."""
+    
+    def post(self, request):
+        token = request.headers.get('Authorization', '').split('Bearer ')[-1] or request.COOKIES.get('access_token')
+        if not token:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        try:
+            # 1. Check if the requester is an ADMIN
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+            requester_id = payload['user_id']
+            requester_account = Accounts.objects.get(user_id=requester_id)
+            
+            if not requester_account.role or requester_account.role.name != 'ADMIN':
+                return Response({"error": "Admin privileges required"}, status=status.HTTP_403_FORBIDDEN)
+            
+            # 2. Get target user and new role
+            target_user_id = request.data.get('user_id')
+            new_role_name = request.data.get('role') # 'USER' or 'ADMIN'
+            
+            if not target_user_id or not new_role_name:
+                return Response({"error": "user_id and role are required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            target_account = Accounts.objects.get(user_id=target_user_id)
+            new_role_obj = Role.objects.get(name=new_role_name.upper())
+            
+            # 3. Update role
+            target_account.role = new_role_obj
+            target_account.save()
+            
+            return Response({
+                "message": f"Successfully updated user role to {new_role_name}"
+            }, status=status.HTTP_200_OK)
+            
+        except (Role.DoesNotExist, Accounts.DoesNotExist):
+             return Response({"error": "User or Role not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
