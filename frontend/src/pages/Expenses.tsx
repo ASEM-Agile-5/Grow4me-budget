@@ -1,16 +1,187 @@
 import { useState } from "react";
-import { Download, Plus, Filter, CalendarDays, Search } from "lucide-react";
-import { useExpenses } from "@/hooks/use-budgets";
+import { Download, Plus, Filter, CalendarDays, Search, X, Check } from "lucide-react";
+import { useExpenses, useBudgets, useBudgetDetails, useCreateExpense } from "@/hooks/use-budgets";
 import { Stat, fmtK, fmtC, catColor } from "@/components/gfm/primitives";
 import { Receipt, Wallet, Activity } from "lucide-react";
+import { toast } from "sonner";
+
+function LogExpenseModal({ onClose }: { onClose: () => void }) {
+  const { data: budgets = [] } = useBudgets();
+  const [budgetId, setBudgetId] = useState("");
+  const [budgetItemId, setBudgetItemId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [notes, setNotes] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const { data: details } = useBudgetDetails(budgetId || null);
+  const items: any[] = details?.items ?? details?.budget_items ?? [];
+
+  const createExpense = useCreateExpense();
+
+  const selectedItem = items.find((i: any) => i.id?.toString() === budgetItemId);
+  const isInventory = selectedItem?.inventory === true;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!budgetItemId || !amount || !date) {
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await createExpense.mutateAsync({
+        budget_item: budgetItemId,
+        amount: Number(amount),
+        date,
+        notes,
+        ...(isInventory && quantity ? { quantity: Number(quantity) } : {}),
+      });
+      toast.success("Expense logged successfully.");
+      onClose();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? "Failed to log expense.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 200, display: "grid", placeItems: "center", background: "rgba(15,23,42,0.45)", backdropFilter: "blur(2px)" }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="gfm-card" style={{ width: "min(520px, 95vw)", padding: 0 }}>
+        {/* Header */}
+        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--gfm-ink-100)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 16 }}>Log Expense</div>
+            <div className="gfm-muted" style={{ fontSize: 13, marginTop: 3 }}>Record a spend against a budget line item.</div>
+          </div>
+          <button className="gfm-icon-btn" style={{ width: 32, height: 32, borderRadius: 8, border: "1.5px solid var(--gfm-ink-200)" }} onClick={onClose}>
+            <X size={15} />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Budget */}
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span className="gfm-label">Budget <span style={{ color: "var(--gfm-danger)" }}>*</span></span>
+            <select
+              className="gfm-select"
+              value={budgetId}
+              onChange={e => { setBudgetId(e.target.value); setBudgetItemId(""); }}
+              required
+            >
+              <option value="">Select a budget…</option>
+              {budgets.map((b: any) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </label>
+
+          {/* Budget item */}
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span className="gfm-label">Line item <span style={{ color: "var(--gfm-danger)" }}>*</span></span>
+            <select
+              className="gfm-select"
+              value={budgetItemId}
+              onChange={e => setBudgetItemId(e.target.value)}
+              required
+              disabled={!budgetId || items.length === 0}
+            >
+              <option value="">{budgetId ? (items.length === 0 ? "No items in this budget" : "Select line item…") : "Select a budget first"}</option>
+              {items.map((item: any) => (
+                <option key={item.id} value={item.id}>
+                  {item.category_name}{item.description ? ` — ${item.description}` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {/* Amount + Date */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <span className="gfm-label">Amount (₵) <span style={{ color: "var(--gfm-danger)" }}>*</span></span>
+              <input
+                className="gfm-input"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                required
+              />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <span className="gfm-label">Date <span style={{ color: "var(--gfm-danger)" }}>*</span></span>
+              <input
+                className="gfm-input"
+                type="date"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+                required
+              />
+            </label>
+          </div>
+
+          {/* Quantity — only for inventory items */}
+          {isInventory && (
+            <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <span className="gfm-label">Quantity used</span>
+              <input
+                className="gfm-input"
+                type="number"
+                min="0"
+                placeholder="0"
+                value={quantity}
+                onChange={e => setQuantity(e.target.value)}
+              />
+            </label>
+          )}
+
+          {/* Notes */}
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span className="gfm-label">Notes</span>
+            <input
+              className="gfm-input"
+              placeholder="What was this expense for?"
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+            />
+          </label>
+
+          {/* Footer */}
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, paddingTop: 4, borderTop: "1px solid var(--gfm-ink-100)", marginTop: 4 }}>
+            <button type="button" className="gfm-btn gfm-btn-ghost" onClick={onClose} disabled={submitting}>
+              Cancel
+            </button>
+            <button type="submit" className="gfm-btn gfm-btn-primary" disabled={submitting}>
+              {submitting
+                ? <><div className="gfm-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />Saving…</>
+                : <><Check size={14} />Log expense</>
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 export default function Expenses() {
   const { data: expenses = [], isLoading } = useExpenses();
   const [search, setSearch] = useState("");
+  const [showModal, setShowModal] = useState(false);
 
   const list = [...expenses].reverse();
   const filtered = search
-    ? list.filter((e: any) => (e.notes ?? "").toLowerCase().includes(search.toLowerCase()) || (e.category_name ?? "").toLowerCase().includes(search.toLowerCase()))
+    ? list.filter((e: any) =>
+        (e.notes ?? "").toLowerCase().includes(search.toLowerCase()) ||
+        (e.category_name ?? "").toLowerCase().includes(search.toLowerCase()))
     : list;
 
   const totalSum = list.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
@@ -18,8 +189,7 @@ export default function Expenses() {
   const thisWeek = list.filter((e: any) => {
     const d = new Date(e.date);
     const now = new Date();
-    const diff = (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24);
-    return diff <= 7;
+    return (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24) <= 7;
   }).reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
 
   const catTot: Record<string, number> = {};
@@ -28,6 +198,8 @@ export default function Expenses() {
 
   return (
     <div className="gfm-page">
+      {showModal && <LogExpenseModal onClose={() => setShowModal(false)} />}
+
       <div className="gfm-page-head">
         <div>
           <h1 className="gfm-h1">Expenses</h1>
@@ -35,15 +207,17 @@ export default function Expenses() {
         </div>
         <div className="gfm-page-actions">
           <button className="gfm-btn gfm-btn-ghost"><Download size={13} />Export CSV</button>
-          <button className="gfm-btn gfm-btn-primary"><Plus size={13} />Log expense</button>
+          <button className="gfm-btn gfm-btn-primary" onClick={() => setShowModal(true)}>
+            <Plus size={13} />Log expense
+          </button>
         </div>
       </div>
 
       <div className="gfm-grid gfm-grid-4">
-        <Stat icon={<Receipt size={16} />} tone="green" label="Total expenses"  value={fmtK(totalSum)} sub={`${list.length} entries`} />
-        <Stat icon={<Wallet size={16} />}  tone="amber" label="This week"       value={fmtK(thisWeek)} sub="last 7 days" />
-        <Stat icon={<Activity size={16} />} tone="ink"  label="Avg / day"       value={fmtK(Math.round(totalSum / 30))} sub="Last 30 days" />
-        <Stat icon={<Filter size={16} />}  tone="blue"  label="Top category"
+        <Stat icon={<Receipt size={16} />}  tone="green" label="Total expenses" value={fmtK(totalSum)} sub={`${list.length} entries`} />
+        <Stat icon={<Wallet size={16} />}   tone="amber" label="This week"      value={fmtK(thisWeek)} sub="last 7 days" />
+        <Stat icon={<Activity size={16} />} tone="ink"   label="Avg / day"      value={fmtK(Math.round(totalSum / 30))} sub="Last 30 days" />
+        <Stat icon={<Filter size={16} />}   tone="blue"  label="Top category"
           value={topCat ? topCat[0] : "—"} sub={topCat ? fmtC(topCat[1]) + " spent" : "No data"} />
       </div>
 
