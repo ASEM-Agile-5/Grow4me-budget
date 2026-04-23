@@ -1,6 +1,7 @@
 import traceback
 import uuid
 import jwt
+from jwt.exceptions import ExpiredSignatureError
 from rest_framework import status, views
 from rest_framework.response import Response
 from .serializers import ProjectSerializer, AllProjectSerializer, CreateProjectSerializer
@@ -28,6 +29,8 @@ class UserProjectView(views.APIView):
             serializer = AllProjectSerializer(projects, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
+        except ExpiredSignatureError:
+            return Response({"error": "Token has expired"}, status=status.HTTP_401_UNAUTHORIZED)
         except Exception as e:
             print("================ ERROR TRACEBACK ================")
             traceback.print_exc()
@@ -58,6 +61,8 @@ class AllProjectsView(views.APIView):
             serializer = AllProjectSerializer(projects, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
+        except ExpiredSignatureError:
+            return Response({"error": "Token has expired"}, status=status.HTTP_401_UNAUTHORIZED)
         except Exception as e:
             print("================ ERROR TRACEBACK ================")
             traceback.print_exc()
@@ -94,6 +99,8 @@ class ProjectDetailsView(views.APIView):
                 {"error": "Project not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
+        except ExpiredSignatureError:
+            return Response({"error": "Token has expired"}, status=status.HTTP_401_UNAUTHORIZED)
         except Exception as e:
             print("================ ERROR TRACEBACK ================")
             traceback.print_exc()
@@ -134,6 +141,8 @@ class CreateProjectView(views.APIView):
 
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        except ExpiredSignatureError:
+            return Response({"error": "Token has expired"}, status=status.HTTP_401_UNAUTHORIZED)
         except Exception as e:
             print("================ ERROR TRACEBACK ================")
             traceback.print_exc()
@@ -176,6 +185,8 @@ class AddUserToProjectView(views.APIView):
                 {"message": "User added successfully"},
                 status=status.HTTP_201_CREATED
             )
+        except ExpiredSignatureError:
+            return Response({"error": "Token has expired"}, status=status.HTTP_401_UNAUTHORIZED)
         except Exception as e:
             print("================ ERROR TRACEBACK ================")
             traceback.print_exc()

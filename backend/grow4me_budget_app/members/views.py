@@ -34,7 +34,7 @@ class LoginView(views.APIView):
             now = datetime.datetime.now(datetime.timezone.utc)
             payload = {
                 'user_id': str(user.id), # Ensure UUID is a string
-                'exp': now + datetime.timedelta(minutes=60),
+                'exp': now + datetime.timedelta(minutes=settings.JWT_EXPIRY_MINUTES),
                 'iat': now
             }
             
