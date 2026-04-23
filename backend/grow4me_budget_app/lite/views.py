@@ -208,7 +208,7 @@ def send_sms_view(request):
     pct = round(total_expenses / total_budget * 100, 1) if total_budget > 0 else 0
 
     msg = (
-        f"Grow4Me {year}\n"
+        f"Summary Report {year}\n"
         f"Budget: GHS {total_budget:,.0f}\n"
         f"Used: GHS {total_expenses:,.0f} ({pct}%)\n"
         f"Sales: GHS {total_sales:,.0f}\n"
