@@ -216,6 +216,7 @@ def send_sms_view(request):
     )
 
     result = send_sms(phone, msg)
+    print(f"[SMS] phone={phone} result={result}")
     status = result.get('status', '')
     if str(status) in ('success', '200', 'true', '1'):
         return redirect('/lite/?msg=sms_ok')
