@@ -1,452 +1,130 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Plus,
-  Edit2,
-  Trash2,
-  FolderOpen,
-  Calendar,
-  ArrowRight,
-  FileText,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { Plus, Sprout, ArrowRight, WifiOff } from "lucide-react";
+import { useBudgets } from "@/hooks/use-budgets";
+import { useOfflineFallback } from "@/hooks/use-offline-fallback";
+import { useOnlineStatus } from "@/hooks/use-online-status";
+import { PaceBar, HBar, fmtK, pct } from "@/components/gfm/primitives";
 import { toast } from "sonner";
-import { useUser } from "@/contexts/UserContext";
-import {
-  useBudgets,
-  useExpenses,
-  useCreateBudget,
-  useSelectedBudget,
-  useProjects,
-} from "@/hooks/use-budgets";
 
-const currentYear = new Date().getFullYear();
-const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
-const emptyForm = {
-  name: "",
-  project: "",
-  year: currentYear.toString(),
-  description: "",
-};
-
-const Budgets = () => {
+export default function Budgets() {
   const navigate = useNavigate();
-  const { user } = useUser();
-  const {
-    data: budgets = [],
-    isLoading: budgetsLoading,
-    error: budgetsError,
-    refetch: fetchBudgets,
-  } = useBudgets();
-  const { data: expenses = [] } = useExpenses();
-  const { setSelectedBudgetId } = useSelectedBudget();
-  const createBudgetMutation = useCreateBudget();
-  const { data: projects = [] } = useProjects();
+  const isOnline = useOnlineStatus();
+  const { data: budgetsRaw, isLoading } = useBudgets();
+  const { data: budgets, usingCache, lastSynced } = useOfflineFallback(["budgets"], budgetsRaw, []);
+  const [tab, setTab] = useState<"active" | "all" | "closed">("active");
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editBudget, setEditBudget] = useState<any | null>(null);
-  const [form, setForm] = useState(emptyForm);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [budgetToDelete, setBudgetToDelete] = useState<string | null>(null);
-  const [filterYear, setFilterYear] = useState<string>("all");
-  const [isSaving, setIsSaving] = useState(false);
-
-  const loading = budgetsLoading;
-  const error = budgetsError ? "Failed to fetch budgets" : null;
-  const budgetItems: any[] = []; // We'll need another hook for all items if needed, or derived
-
-  const filtered =
-    filterYear === "all"
-      ? budgets
-      : budgets.filter((b: any) => b.year === Number(filterYear));
-
-  const handleSave = async () => {
-    if (!form.name || !form.project) return;
-    setIsSaving(true);
-    try {
-      const data = {
-        name: form.name,
-        project: form.project,
-        year: Number(form.year),
-        description: form.description,
-      };
-      if (editBudget) {
-        // Redacted for now as updateBudgetAPI isn't in services.tsx yet
-      } else {
-        await createBudgetMutation.mutateAsync(data);
-      }
-      resetDialog();
-    } catch (err: any) {
-      console.error("Failed to save budget:", err);
-      toast.error(err?.response?.data?.message || "Failed to save budget.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleEdit = (budget: any, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditBudget(budget);
-    setForm({
-      name: budget.name,
-      project: budget.project,
-      year: budget.year.toString(),
-      description: budget.description,
-    });
-    setDialogOpen(true);
-  };
-
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setBudgetToDelete(id);
-    setDeleteConfirmOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!budgetToDelete) return;
-    // Placeholder for delete mutation
-    setDeleteConfirmOpen(false);
-    setBudgetToDelete(null);
-  };
-
-  const resetDialog = () => {
-    setDialogOpen(false);
-    setEditBudget(null);
-    setForm(emptyForm);
-  };
-
-  const handleCardClick = (budget: any) => {
-    setSelectedBudgetId(budget.id.toString());
-    navigate(`/budgets/${budget.id}`);
-  };
-
-  if (loading && budgets.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-        <div className="h-10 w-10 border-4 border-primary/20 border-t-primary animate-spin rounded-full" />
-        <p className="text-muted-foreground font-medium">
-          Fetching your budgets...
-        </p>
-      </div>
-    );
-  }
+  const all = budgets as any[];
+  const active = tab === "all" ? all
+    : tab === "closed" ? all.filter((b: any) => b.status === "closed" || b.status === "archived")
+    : all.filter((b: any) => b.status !== "closed" && b.status !== "archived");
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Budgets</h1>
-          <p className="text-muted-foreground">
-            Create and manage project budgets
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => fetchBudgets()}>
-            Refresh
-          </Button>
-          <Dialog
-            open={dialogOpen}
-            onOpenChange={(open) => {
-              if (!open) resetDialog();
-              else setDialogOpen(true);
-            }}
-          >
-            <DialogTrigger asChild>
-              <Button id="create-budget-btn" variant="outline">
-                <Plus className="mr-2 h-4 w-4" /> New Budget
-              </Button>
-            </DialogTrigger>
-            <Button onClick={() => navigate("/budgets/create")}>
-              <FileText className="mr-2 h-4 w-4" /> Templates
-            </Button>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>
-                  {editBudget ? "Edit" : "Create"} Budget
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-2">
-                <div>
-                  <Label>Budget Name</Label>
-                  <Input
-                    id="budget-name"
-                    value={form.name}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, name: e.target.value }))
-                    }
-                    placeholder="e.g. 2026 Maize Season"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Project</Label>
-                    <Select
-                      value={form.project}
-                      onValueChange={(v) =>
-                        setForm((f) => ({ ...f, project: v }))
-                      }
-                    >
-                      <SelectTrigger id="budget-project">
-                        <SelectValue placeholder="Select a project" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {projects?.map((p: any) => (
-                          <SelectItem
-                            key={p.id || p.project_id}
-                            value={(p.id || p.project_id).toString()}
-                          >
-                            {p.name || p.title || p.projectName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Year</Label>
-                    <Select
-                      value={form.year}
-                      onValueChange={(v) => setForm((f) => ({ ...f, year: v }))}
-                    >
-                      <SelectTrigger id="budget-year">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {yearOptions.map((y) => (
-                          <SelectItem key={y} value={y.toString()}>
-                            {y}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div>
-                  <Label>Description</Label>
-                  <Textarea
-                    id="budget-description"
-                    value={form.description}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, description: e.target.value }))
-                    }
-                    placeholder="Brief description of this budget"
-                  />
-                </div>
-                <Button
-                  id="save-budget-btn"
-                  className="w-full"
-                  onClick={handleSave}
-                  disabled={isSaving}
-                >
-                  {isSaving ? "Saving..." : editBudget ? "Update" : "Create"}{" "}
-                  Budget
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
-
-      {error && (
-        <div className="p-4 rounded-xl bg-destructive/10 text-destructive text-sm font-medium border border-destructive/20 flex items-center justify-between">
-          <span>{error}</span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => fetchBudgets()}
-            className="h-8 hover:bg-destructive/20 text-destructive"
-          >
-            Retry
-          </Button>
+    <div className="gfm-page">
+      {usingCache && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, fontSize: 12.5, fontWeight: 600, color: "#92400e" }}>
+          <WifiOff size={13} />Showing cached data · Last synced: {lastSynced}
         </div>
       )}
 
-      {/* Year filter */}
-      <div className="flex items-center gap-3">
-        <Select value={filterYear} onValueChange={setFilterYear}>
-          <SelectTrigger className="w-36" id="budget-year-filter">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Years</SelectItem>
-            {yearOptions.map((y) => (
-              <SelectItem key={y} value={y.toString()}>
-                {y}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} budget{filtered.length !== 1 ? "s" : ""}
-        </span>
+      <div className="gfm-page-head">
+        <div>
+          <h1 className="gfm-h1">Budgets</h1>
+          <div className="gfm-h1-sub">Plan, track and close out every farm project.</div>
+        </div>
+        <div className="gfm-page-actions">
+          <div className="gfm-seg">
+            <button className={tab === "active" ? "active" : ""} onClick={() => setTab("active")}>Active</button>
+            <button className={tab === "all"    ? "active" : ""} onClick={() => setTab("all")}>All</button>
+            <button className={tab === "closed" ? "active" : ""} onClick={() => setTab("closed")}>Closed</button>
+          </div>
+          <button
+            className="gfm-btn gfm-btn-primary"
+            onClick={() => isOnline ? navigate("/budgets/create") : toast.error("You need an internet connection to create a budget.")}
+          >
+            <Plus size={13} />New budget
+          </button>
+        </div>
       </div>
 
-      {/* Budget cards */}
-      {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-card p-12 text-center">
-          <FolderOpen className="h-12 w-12 text-muted-foreground/40 mb-3" />
-          <p className="text-lg font-semibold text-muted-foreground">
-            No budgets yet
-          </p>
-          <p className="text-sm text-muted-foreground/70 mt-1">
-            Create your first budget to get started
-          </p>
+      {isLoading && !usingCache ? (
+        <div style={{ display: "grid", placeItems: "center", padding: 48 }}>
+          <div className="gfm-spinner" />
+        </div>
+      ) : !isOnline && all.length === 0 ? (
+        <div className="gfm-empty" style={{ padding: "56px 28px" }}>
+          <WifiOff size={28} style={{ margin: "0 auto 12px", color: "var(--gfm-ink-400)" }} />
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>No data available offline</div>
+          <div style={{ fontSize: 13 }}>Connect to the internet to load your budgets.</div>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((budget) => {
-            const spent = budget.spent || 0;
-            const planned = budget.planned || 0;
-            const remaining = budget.left || 0;
-            const pct = planned > 0 ? (spent / planned) * 100 : 0;
-
+        <div className="gfm-grid gfm-grid-3">
+          {active.map((b: any) => {
+            const planned = Number(b.planned ?? 0);
+            const spent   = Number(b.spent ?? 0);
+            const left    = Number(b.left ?? planned - spent);
+            const utilPct = pct(spent, planned);
+            const over    = utilPct > 100;
             return (
               <div
-                key={budget.id}
-                onClick={() => handleCardClick(budget)}
-                className="group relative rounded-2xl border bg-card/40 backdrop-blur-md p-5 cursor-pointer transition-all duration-300 hover:shadow-2xl hover:bg-card/60 hover:border-primary/30 hover:-translate-y-1 border-white/5 stat-card-shadow"
+                key={b.id}
+                className="gfm-card gfm-card-p"
+                style={{ cursor: "pointer", display: "flex", flexDirection: "column", gap: 14 }}
+                onClick={() => navigate(`/budgets/${b.id}`)}
               >
-                {/* Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-bold text-lg leading-tight tracking-tight truncate">
-                      {budget.name}
-                    </h3>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <span className="rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[9px] font-bold text-primary uppercase tracking-widest">
-                        {budget.project}
-                      </span>
-                      <span className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                        <Calendar className="h-3 w-3" />
-                        {budget.year}
-                      </span>
-                    </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span className="gfm-badge"><Sprout size={11} />{b.project}</span>
+                    <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em", marginTop: 10 }}>{b.name}</div>
+                    <div className="gfm-muted" style={{ fontSize: 12, marginTop: 3, lineHeight: 1.4 }}>{b.description}</div>
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={(e) => handleEdit(budget, e)}
-                      className="rounded-lg p-1.5 hover:bg-muted transition-colors"
-                    >
-                      <Edit2 className="h-3.5 w-3.5 text-muted-foreground" />
-                    </button>
-                    {user?.role === "ADMIN" && (
-                      <button
-                        onClick={(e) => handleDelete(budget.id, e)}
-                        className="rounded-lg p-1.5 hover:bg-destructive/10 transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </button>
-                    )}
+                  <span className={`gfm-badge ${over ? "over" : utilPct > 85 ? "warn" : "ok"}`}>
+                    <span className="dot" />{utilPct}%
+                  </span>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, padding: "14px 0", borderTop: "1px solid var(--gfm-ink-100)", borderBottom: "1px solid var(--gfm-ink-100)" }}>
+                  <div>
+                    <div className="gfm-label">Planned</div>
+                    <div className="gfm-num" style={{ fontWeight: 800, fontSize: 16, letterSpacing: "-0.02em", marginTop: 2 }}>{fmtK(planned)}</div>
+                  </div>
+                  <div>
+                    <div className="gfm-label">Spent</div>
+                    <div className="gfm-num" style={{ fontWeight: 800, fontSize: 16, letterSpacing: "-0.02em", marginTop: 2 }}>{fmtK(spent)}</div>
+                  </div>
+                  <div>
+                    <div className="gfm-label">{left < 0 ? "Over" : "Left"}</div>
+                    <div className="gfm-num" style={{ fontWeight: 800, fontSize: 16, letterSpacing: "-0.02em", marginTop: 2, color: left < 0 ? "var(--gfm-danger)" : "var(--gfm-green-600)" }}>
+                      {fmtK(Math.abs(left))}
+                    </div>
                   </div>
                 </div>
 
-                {budget.description && (
-                  <p className="text-xs text-muted-foreground/80 mb-4 line-clamp-2 leading-relaxed">
-                    {budget.description}
-                  </p>
-                )}
+                <PaceBar actual={spent} planned={planned} expected={planned * 0.45} />
 
-                {/* Financials - Simplified */}
-                <div className="flex items-end justify-between mb-4">
-                  <div className="space-y-0.5">
-                    <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">
-                      Spent / Planned
-                    </p>
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-base font-bold text-foreground">
-                        GHS {spent.toLocaleString()}
-                      </span>
-                      <span className="text-xs text-muted-foreground/60">
-                        of GHS {planned.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">
-                      Remaining
-                    </p>
-                    <p className={`text-sm font-bold ${remaining >= 0 ? "text-emerald-500" : "text-destructive"}`}>
-                     {remaining >= 0 ? "+" : ""}GHS {remaining.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Progress bar - Ultra thin */}
-                <div className="space-y-1.5">
-                  <div className="h-1.5 rounded-full bg-muted/40 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-1000 ${
-                        pct > 100
-                          ? "bg-destructive"
-                          : pct > 80
-                            ? "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"
-                            : "bg-primary shadow-[0_0_10px_rgba(59,130,246,0.5)]"
-                      }`}
-                      style={{ width: `${Math.min(pct, 100)}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between items-center text-[10px] font-bold">
-                    <span className={pct > 100 ? "text-destructive" : pct > 80 ? "text-amber-500" : "text-primary"}>
-                      {pct.toFixed(1)}%
-                    </span>
-                    <span className="text-muted-foreground/40 font-medium">UTILIZATION</span>
-                  </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--gfm-ink-500)" }}>
+                  <span>{b.year}</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 700, color: "var(--gfm-green-700)" }}>
+                    Open <ArrowRight size={11} />
+                  </span>
                 </div>
               </div>
             );
           })}
+
+          <div
+            className="gfm-empty"
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, cursor: "pointer", minHeight: 300 }}
+            onClick={() => isOnline ? navigate("/budgets/create") : toast.error("You need an internet connection to create a budget.")}
+          >
+            <div style={{ width: 52, height: 52, borderRadius: 14, background: "var(--gfm-amber-100)", color: "var(--gfm-amber-600)", display: "grid", placeItems: "center" }}>
+              <Plus size={24} />
+            </div>
+            <div style={{ fontWeight: 800, color: "var(--gfm-ink-900)", fontSize: 14 }}>Create a new budget</div>
+            <div style={{ fontSize: 12 }}>{isOnline ? "Start from template or blank" : "Go online to create a budget"}</div>
+          </div>
         </div>
       )}
-
-      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete this
-              budget and all its associated data.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete Configuration
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
-};
-
-export default Budgets;
+}

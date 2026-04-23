@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Grow4Me</title>
+</head>
+<body>
+<b>Grow4Me {{ year }}</b><br>
+Hello, {{ name }}
+<hr>
+{% if msg == "expense" %}<p><b style="color:green">Expense saved.</b></p>{% endif %}
+{% if msg == "sale" %}<p><b style="color:green">Sale saved.</b></p>{% endif %}
+{% if msg == "sms_ok" %}<p><b style="color:green">SMS sent.</b></p>{% endif %}
+{% if msg == "sms_fail" %}<p><b style="color:red">SMS failed. Check your phone number.</b></p>{% endif %}
+<b>Summary</b><br>
+<table border="0" cellpadding="2">
+<tr><td>Total Budget:</td><td>GHS {{ total_budget }}</td></tr>
+<tr><td>Budget Used:</td><td>GHS {{ total_expenses }} ({{ pct }}%)</td></tr>
+<tr><td>Sales Total:</td><td>GHS {{ total_sales }}</td></tr>
+<tr><td>Expenses Total:</td><td>GHS {{ total_expenses }}</td></tr>
+<tr><td>Balance:</td><td>GHS {{ balance }}</td></tr>
+</table>
+<hr>
+<a href="/lite/expense/">Record Expense</a><br>
+<br>
+<a href="/lite/sale/">Record Sale</a><br>
+<br>
+{% if phone %}
+<form method="post" action="/lite/sms/">
+{% csrf_token %}
+<input type="submit" value="Send Summary via SMS">
+</form>
+{% else %}
+<a href="/lite/phone/">Set phone number for SMS</a>
+{% endif %}
+<hr>
+<a href="/lite/logout/">Logout</a>
+</body>
+</html>

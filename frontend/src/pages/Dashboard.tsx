@@ -1,391 +1,205 @@
-import { useMemo, useEffect } from "react";
-import { Wallet, Receipt, TrendingUp, TrendingDown } from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import StatCard from "@/components/StatCard";
+import { useNavigate } from "react-router-dom";
+import { Wallet, Receipt, Coins, Activity, CalendarDays, ArrowUpRight, ArrowRight, WifiOff } from "lucide-react";
+import { useUser } from "@/contexts/UserContext";
+import { useDashboardSummary, useMonthlyExpenses, useExpenses, useRevenues } from "@/hooks/use-budgets";
+import { useOnlineStatus } from "@/hooks/use-online-status";
+import { useOfflineFallback } from "@/hooks/use-offline-fallback";
+import { timeAgo } from "@/lib/query-cache";
+import { Stat, Hero, PaceCard, SectionHead, fmtK, fmtC, pct, catColor } from "@/components/gfm/primitives";
+import { AreaLine, RadialBars, Donut } from "@/components/gfm/charts";
 
-const CATEGORY_COLORS = [
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
-  "hsl(var(--primary))",
-  "hsl(var(--secondary))",
-];
+const YEAR = new Date().getFullYear();
 
-import {
-  useBudgets,
-  useSelectedBudget,
-  useBudgetDetails,
-  useExpenses,
-  useDashboardSummary,
-  useMonthlyExpenses,
-  useCategoryExpenses,
-} from "@/hooks/use-budgets";
+export default function Dashboard() {
+  const navigate = useNavigate();
+  const { user } = useUser();
+  const isOnline = useOnlineStatus();
+  const firstName = user?.first_name ?? "there";
 
-const Dashboard = () => {
-  const {
-    data: budgets = [],
-    isLoading: budgetsLoading,
-    error: budgetsError,
-    refetch: refetchBudgets,
-  } = useBudgets();
-  const { selectedBudgetId, setSelectedBudgetId } = useSelectedBudget();
+  const { data: summaryRaw } = useDashboardSummary(YEAR);
+  const { data: monthly } = useMonthlyExpenses(YEAR);
+  const { data: expensesRaw } = useExpenses();
+  const { data: revenuesRaw } = useRevenues();
 
-  useEffect(() => {
-    if (!selectedBudgetId && budgets.length > 0) {
-      setSelectedBudgetId(budgets[0].id.toString());
-    }
-  }, [budgets, selectedBudgetId, setSelectedBudgetId]);
-  const { data: budgetDetails, isLoading: detailsLoading } =
-    useBudgetDetails(selectedBudgetId);
-  const { data: expenses = [], isLoading: expensesLoading } = useExpenses();
-
-  const selectedBudget = budgets.find(
-    (b: any) => b.id.toString() === selectedBudgetId?.toString(),
+  const { data: effectiveSummary, usingCache, lastSynced } = useOfflineFallback(
+    ["dashboard-summary", YEAR], summaryRaw, null
   );
-  const year = selectedBudget?.year || new Date().getFullYear();
+  const { data: expenses } = useOfflineFallback(["expenses"], expensesRaw, []);
+  const { data: revenues } = useOfflineFallback(["revenues"], revenuesRaw, []);
 
-  const { data: summaryData, isLoading: summaryLoading } =
-    useDashboardSummary(year);
-  // Total monthly data (for the whole year/all budgets)
-  const { data: totalMonthlyDataResponse, isLoading: totalMonthlyLoading } =
-    useMonthlyExpenses(year);
-  // Budget-specific monthly data
-  const { data: monthlyDataResponse, isLoading: monthlyLoading } = 
-    useMonthlyExpenses(year, selectedBudgetId || undefined);
-  const { data: categoryDataResponse, isLoading: categoryLoading } =
-    useCategoryExpenses(selectedBudgetId);
+  const expenseList = expenses as any[];
+  const revenueList = revenues as any[];
+  const summary = effectiveSummary as Record<string, any> | null;
 
-  const expensesForSelected = expenses.filter(
-    (e: any) => e.budgetId?.toString() === selectedBudgetId?.toString(),
-  );
-  const revenuesForSelected: any[] = []; // Assuming no revenue API for now
+  const planned = Number(summary?.["Total Budget"] ?? 0);
+  const revenue = Number(summary?.["Revenue"] ?? 0);
+  const net     = Number(summary?.["Net Profit"] ?? 0);
+  const actual  = expenseList.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
+  const revPend = revenueList.filter((r: any) => r.status !== "paid").reduce((s: number, r: any) => s + Number(r.total ?? 0), 0);
+  const utilPct = pct(actual, planned);
+  const expected = Math.round(planned * 0.45);
 
-  const totalBudget = summaryData?.["Total Budget"] || 0;
-  const totalRevenue = summaryData?.["Revenue"] || 0;
-  const netProfit = summaryData?.["Net Profit"] || 0;
+  const catTot: Record<string, number> = {};
+  expenseList.forEach((e: any) => { catTot[e.category_name] = (catTot[e.category_name] || 0) + Number(e.amount ?? 0); });
+  const cats = Object.entries(catTot)
+    .map(([k, v]) => ({ label: k, v, color: catColor(k) }))
+    .sort((a, b) => b.v - a.v);
 
-  const monthlyExpensesValues = monthlyDataResponse
-    ? (Object.values(monthlyDataResponse) as number[])
-    : [];
-  const totalExpenses = monthlyExpensesValues.reduce((s, v) => s + v, 0);
+  const recent = [...expenseList].reverse().slice(0, 5);
+  const monthlyData = monthly && !Array.isArray(monthly)
+    ? Object.entries(monthly as Record<string, number>).map(([k, v]) => ({ m: k.slice(0, 3), v: Number(v) }))
+    : Array.isArray(monthly)
+      ? (monthly as any[]).map((m: any) => ({ m: String(m.month ?? m.m ?? "").slice(0, 3), v: Number(m.total ?? m.v ?? 0) }))
+      : [];
 
-  const loading =
-    budgetsLoading ||
-    detailsLoading ||
-    expensesLoading ||
-    summaryLoading ||
-    monthlyLoading ||
-    categoryLoading;
-  const error = budgetsError ? "Failed to load dashboard data" : null;
+  const radial = [
+    { label: "Used",    pct: Math.min(utilPct, 100), color: "#16A34A" },
+    { label: "Revenue", pct: planned > 0 ? Math.min(pct(revenue, planned), 100) : 0, color: "#F59E0B" },
+  ];
 
-  // Budget-specific monthly chart data
-  const monthlyExpenseData = useMemo(() => {
-    if (!monthlyDataResponse) return [];
-    return Object.entries(monthlyDataResponse).map(([month, amount]) => ({
-      month,
-      amount: Number(amount),
-    }));
-  }, [monthlyDataResponse]);
-
-  // Total monthly chart data (all budgets)
-  const totalMonthlyExpenseData = useMemo(() => {
-    if (!totalMonthlyDataResponse) return [];
-    return Object.entries(totalMonthlyDataResponse).map(([month, amount]) => ({
-      month,
-      amount: Number(amount),
-    }));
-  }, [totalMonthlyDataResponse]);
-
-  // Category breakdown chart data
-  const categoryExpenseData = useMemo(() => {
-    if (!categoryDataResponse) return [];
-    return Object.entries(categoryDataResponse).map(([name, value], i) => ({
-      name,
-      value: Number(value),
-      fill: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
-    }));
-  }, [categoryDataResponse]);
-
-  if (loading && budgets.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-        <div className="h-10 w-10 border-4 border-primary/20 border-t-primary animate-spin rounded-full" />
-        <p className="text-muted-foreground font-medium">
-          Loading dashboard data...
-        </p>
-      </div>
-    );
-  }
+  const noDataOffline = !isOnline && !effectiveSummary;
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">
-            {selectedBudget ? selectedBudget.name : "Select a budget"} overview
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={() => refetchBudgets()}>
-            Refresh
-          </Button>
-          <Select
-            value={selectedBudgetId ?? ""}
-            onValueChange={setSelectedBudgetId}
-          >
-            <SelectTrigger className="w-52" id="dashboard-budget-picker">
-              <SelectValue placeholder="Select budget" />
-            </SelectTrigger>
-            <SelectContent>
-              {budgets.map((b) => (
-                <SelectItem key={b.id} value={b.id.toString()}>
-                  {b.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {error && (
-        <div className="p-4 rounded-xl bg-destructive/10 text-destructive text-sm font-medium border border-destructive/20">
-          {error}
+    <div className="gfm-page">
+      {/* Offline / cache banners */}
+      {!isOnline && !noDataOffline && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, fontSize: 12.5, fontWeight: 600, color: "#92400e" }}>
+          <WifiOff size={13} />
+          {usingCache ? `Showing cached data · Last synced: ${lastSynced}` : "You're offline."}
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Hero Card */}
-        <div className="lg:col-span-2">
-          <StatCard
-            title="Total Budget Balance"
-            value={`GHS ${totalBudget.toLocaleString()}`}
-            subtitle={selectedBudget ? `${selectedBudget.name} · ${selectedBudget.year}` : "Select a budget"}
-            icon={Wallet}
-            variant="hero"
-            className="h-full min-h-[160px]"
-          />
+      {noDataOffline && (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "48px 28px", background: "var(--gfm-ink-50)", border: "1px solid var(--gfm-ink-100)", borderRadius: 16, textAlign: "center" }}>
+          <WifiOff size={32} style={{ color: "var(--gfm-ink-400)" }} />
+          <div style={{ fontWeight: 800, fontSize: 16, color: "var(--gfm-ink-700)" }}>No data available offline</div>
+          <div style={{ fontSize: 13, color: "var(--gfm-ink-500)" }}>
+            Connect to the internet to load your dashboard. Data will be cached for future offline use.
+          </div>
         </div>
-        
-        {/* Quick Stats Grid */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col rounded-2xl border bg-card/60 p-4 transition-all hover:bg-card/80">
-            <div className="mb-2 h-10 w-10 rounded-xl bg-orange-500/20 text-orange-500 flex items-center justify-center">
-              <Receipt className="h-5 w-5" />
-            </div>
-            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Spent</p>
-            <p className="text-lg font-bold">GHS {totalExpenses.toLocaleString()}</p>
+      )}
+
+      <Hero
+        name={firstName}
+        sub={`${summary?.active_budgets ?? "—"} active budgets · ₵${(actual / 1000).toFixed(1)}k spent this season. Let's grow today.`}
+        weather={{ t: 28, label: "Partly sunny · Accra" }}
+        right={
+          <>
+            <button className="gfm-pill"><CalendarDays size={12} />This season</button>
+            <button className="gfm-btn gfm-btn-amber gfm-btn-arrow" onClick={() => navigate("/reports")}>
+              Reports <span className="cap"><ArrowUpRight size={14} /></span>
+            </button>
+          </>
+        }
+      />
+
+      <div className="gfm-grid gfm-grid-4">
+        <Stat icon={<Wallet size={16} />}   tone="green" label="Total budget"   value={fmtK(planned)}  sub={usingCache ? "cached" : "across active farms"} />
+        <Stat icon={<Receipt size={16} />}  tone="amber" label="Spent · season" value={fmtK(actual)}   sub={`${utilPct}% of plan`} />
+        <Stat icon={<Coins size={16} />}    tone="ink"   label="Revenue"        value={fmtK(revenue)}  sub={usingCache ? `cached · ${lastSynced}` : (revPend > 0 ? `${fmtK(revPend)} pending` : "season total")} delta={usingCache ? undefined : "8.4"} />
+        <Stat icon={<Activity size={16} />} tone={net >= 0 ? "green" : "pink"}  label="Net P&L"        value={(net >= 0 ? "+" : "−") + fmtK(Math.abs(net))} sub={usingCache ? "cached" : "season-to-date"} />
+      </div>
+
+      <div className="gfm-grid" style={{ gridTemplateColumns: "1.6fr 1fr" }}>
+        <div className="gfm-card">
+          <div className="gfm-card-head">
+            <div><h3>Spending trend</h3><div className="sub">Monthly expenses this year</div></div>
+            <div className="gfm-seg"><button className="active">Season</button><button>YTD</button></div>
           </div>
-          
-          <div className="flex flex-col rounded-2xl border bg-card/60 p-4 transition-all hover:bg-card/80">
-            <div className="mb-2 h-10 w-10 rounded-xl bg-emerald-500/20 text-emerald-500 flex items-center justify-center">
-              <TrendingUp className="h-5 w-5" />
-            </div>
-            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Revenue</p>
-            <p className="text-lg font-bold">GHS {totalRevenue.toLocaleString()}</p>
+          <div style={{ padding: "4px 18px 18px" }}>
+            {monthlyData.length > 0
+              ? <AreaLine data={monthlyData} width={760} height={240}
+                  format={v => v >= 1000 ? (v / 1000).toFixed(1) + "k" : String(v)} />
+              : <div style={{ height: 240, display: "grid", placeItems: "center", color: "var(--gfm-ink-400)", fontSize: 13 }}>
+                  {!isOnline ? "Monthly trend unavailable offline" : "No expense data yet"}
+                </div>
+            }
           </div>
-          
-          <div className="flex flex-col rounded-2xl border bg-card/60 p-4 transition-all hover:bg-card/80 col-span-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
-                  netProfit >= 0 ? "bg-primary/20 text-primary" : "bg-destructive/20 text-destructive"
-                }`}>
-                  {netProfit >= 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
-                </div>
-                <div>
-                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Net Profit</p>
-                  <p className="text-lg font-bold">GHS {netProfit.toLocaleString()}</p>
-                </div>
-              </div>
-              <div className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                netProfit >= 0 ? "bg-emerald-500/20 text-emerald-500" : "bg-destructive/20 text-destructive"
-              }`}>
-                {netProfit >= 0 ? "+2.4%" : "-1.2%"}
-              </div>
-            </div>
+        </div>
+
+        <div className="gfm-card gfm-card-p">
+          <SectionHead title="Budget overview" sub={usingCache ? `Cached · ${lastSynced}` : "Utilisation vs revenue"} />
+          <RadialBars data={radial} width={300} height={190} centerBig={fmtK(actual)} centerSub="Total spent" />
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", fontSize: 11, color: "var(--gfm-ink-600)", fontWeight: 600, flexWrap: "wrap", marginTop: 8 }}>
+            {radial.map(r => (
+              <span key={r.label} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <span style={{ width: 7, height: 7, borderRadius: 999, background: r.color }} />{r.label} {r.pct}%
+              </span>
+            ))}
           </div>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Monthly expenses by budget */}
-        <div className="rounded-xl border bg-card p-5">
-          <h3 className="mb-4 text-sm font-semibold text-primary/80">
-            Monthly Expenses: {selectedBudget?.name || "Selected Budget"}
-          </h3>
-          {monthlyExpenseData.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-16">
-              No expense data for this budget
-            </p>
-          ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={monthlyExpenseData}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="hsl(var(--border))"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="month"
-                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis 
-                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    borderRadius: "1rem",
-                    border: "1px solid hsl(var(--border))",
-                    backdropFilter: "blur(10px)",
-                    fontSize: 13,
-                    color: "hsl(var(--foreground))",
-                  }}
-                  itemStyle={{ color: "hsl(var(--primary))" }}
-                  formatter={(value: number) => [
-                    `GHS ${value.toLocaleString()}`,
-                    "Expenses",
-                  ]}
-                />
-                <Bar
-                  dataKey="amount"
-                  fill="hsl(var(--chart-1))"
-                  radius={[8, 8, 0, 0]}
-                  className="transition-all duration-300"
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
+      <div className="gfm-grid" style={{ gridTemplateColumns: "1.1fr 1fr" }}>
+        <PaceCard title="Season pace" actual={actual} planned={planned} expected={expected}
+          label={`${utilPct}% of plan used`} />
 
-        {/* Category breakdown */}
-        <div className="rounded-xl border bg-card p-5">
-          <h3 className="mb-4 text-sm font-semibold">Expenses by Category</h3>
-          {categoryExpenseData.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-16">
-              No expense data for this budget
-            </p>
-          ) : (
-            <>
-              <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
-                  <Pie
-                    data={categoryExpenseData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={90}
-                    innerRadius={50}
-                    paddingAngle={3}
-                  >
-                    {categoryExpenseData.map((entry, i) => (
-                      <Cell key={i} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number) =>
-                      `GHS ${value.toLocaleString()}`
-                    }
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="mt-2 flex flex-wrap gap-3 justify-center">
-                {categoryExpenseData.map((c) => (
-                  <div
-                    key={c.name}
-                    className="flex items-center gap-1.5 text-xs"
-                  >
-                    <span
-                      className="h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: c.fill }}
-                    />
-                    {c.name}
+        <div className="gfm-card gfm-card-p">
+          <SectionHead title="Where money's going" sub="Season-to-date by category" />
+          {cats.length > 0 ? (
+            <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+              <Donut data={cats} size={160} stroke={22} centerTop="SPENT" centerBig={fmtK(actual)} centerSub="GHS" />
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                {cats.slice(0, 5).map((c, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5 }}>
+                    <span style={{ width: 9, height: 9, borderRadius: 3, background: c.color }} />
+                    <span style={{ color: "var(--gfm-ink-800)", fontWeight: 600 }}>{c.label}</span>
+                    <span className="gfm-num gfm-muted" style={{ marginLeft: "auto", fontWeight: 700 }}>{fmtC(c.v)}</span>
                   </div>
                 ))}
               </div>
-            </>
+            </div>
+          ) : (
+            <div className="gfm-empty">No expenses logged yet</div>
           )}
         </div>
       </div>
 
-      <div className="rounded-xl border bg-card p-5">
-        <h3 className="mb-4 text-sm font-semibold">Total Monthly Expenses (All Projects)</h3>
-        {totalMonthlyExpenseData.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-16">
-            No aggregated data available
-          </p>
-        ) : (
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={totalMonthlyExpenseData}>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="hsl(var(--border))"
-                vertical={false}
-              />
-              <XAxis
-                dataKey="month"
-                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis 
-                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                    borderRadius: "1rem",
-                    border: "1px solid hsl(var(--border))",
-                    backdropFilter: "blur(10px)",
-                  fontSize: 13,
-                  color: "hsl(var(--foreground))",
-                }}
-                itemStyle={{ color: "hsl(var(--chart-3))" }}
-                formatter={(value: number) => [
-                  `GHS ${value.toLocaleString()}`,
-                  "Total Expenses",
-                ]}
-              />
-              <Bar
-                dataKey="amount"
-                fill="hsl(var(--chart-3))"
-                radius={[8, 8, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        )}
+      <div className="gfm-card">
+        <div className="gfm-card-head">
+          <div><h3>Recent expenses</h3><div className="sub">Latest transactions</div></div>
+          <button className="gfm-btn gfm-btn-ghost gfm-btn-sm" onClick={() => navigate("/expenses")}>
+            View all <ArrowRight size={11} />
+          </button>
+        </div>
+        <div style={{ padding: "0 10px 6px" }}>
+          {recent.length > 0 ? (
+            <table className="gfm-table">
+              <thead>
+                <tr>
+                  <th style={{ paddingLeft: 20 }}>Date</th>
+                  <th>Category</th>
+                  <th>Notes</th>
+                  <th style={{ textAlign: "right", paddingRight: 20 }}>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recent.map((e: any) => (
+                  <tr key={e.id}>
+                    <td className="gfm-num gfm-muted" style={{ paddingLeft: 20 }}>
+                      {new Date(e.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+                    </td>
+                    <td>
+                      <span className="gfm-cat">
+                        <span className="sw" style={{ background: catColor(e.category_name) }} />
+                        {e.category_name}
+                      </span>
+                    </td>
+                    <td className="gfm-muted" style={{ maxWidth: 280 }}>{e.notes}</td>
+                    <td className="gfm-num" style={{ textAlign: "right", paddingRight: 20, fontWeight: 800 }}>
+                      {fmtC(Number(e.amount))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div style={{ padding: 20, textAlign: "center", color: "var(--gfm-ink-400)", fontSize: 13 }}>
+              {!isOnline ? "Expenses unavailable offline" : "No expenses yet"}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
-};
-
-export default Dashboard;
+}

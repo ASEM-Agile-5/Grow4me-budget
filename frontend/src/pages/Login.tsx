@@ -1,135 +1,143 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sprout, LogIn, Mail, Lock } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useUser } from "@/contexts/UserContext";
+import { Eye, EyeOff, Sprout } from "lucide-react";
 import { loginAPI } from "@/services/services";
-import { toast } from "@/hooks/use-toast";
 
-const Login = () => {
+export default function Login() {
   const navigate = useNavigate();
-  const { refetchUser } = useUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setIsLoading(true);
+    setLoading(true);
     try {
-      const response = await loginAPI(email, password);
-      console.log(response);
-      if (response?.status === 200) {
-        await refetchUser();
-        navigate("/");
-        toast({
-          title: "Login Successful",
-          description: "Welcome back to FarmBudget!",
-        });
+      const res = await loginAPI(email, password);
+      if ((res as any)?.status === 401) {
+        setError("Invalid credentials. Please try again.");
       } else {
-        setError("Invalid email or password.");
+        navigate("/");
       }
-    } catch {
-      setError("Invalid email or password.");
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.message ??
+        err?.response?.data?.detail ??
+        "Login failed. Please try again."
+      );
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-muted/30">
-      <div className="w-full max-w-md space-y-8 animate-fade-in">
-        <div className="text-center space-y-2">
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl farm-gradient mb-4">
-            <Sprout className="h-6 w-6 text-white" />
+    <div style={{ minHeight: "100vh", background: "var(--gfm-ink-50)", display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+      {/* Left — brand */}
+      <div style={{ background: "linear-gradient(135deg, #0f6e33 0%, #16A34A 100%)", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "60px 48px", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: -100, right: -100, width: 400, height: 400, borderRadius: 999, background: "rgba(255,255,255,0.08)" }} />
+        <div style={{ position: "absolute", bottom: -60, left: -60, width: 280, height: 280, borderRadius: 999, background: "rgba(245,158,11,0.15)" }} />
+        <div style={{ position: "relative", textAlign: "center", color: "#fff", maxWidth: 380 }}>
+          <div style={{ width: 72, height: 72, borderRadius: 22, background: "rgba(255,255,255,0.18)", display: "grid", placeItems: "center", margin: "0 auto 24px" }}>
+            <Sprout size={32} />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">FarmBudget</h1>
-          <p className="text-muted-foreground">
-            Sign in to manage your farm operations
-          </p>
+          <img src="/assets/logo_long.png" alt="GrowForMe"
+            style={{ height: 36, width: "auto", marginBottom: 16, filter: "brightness(0) invert(1)" }}
+            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+          <div style={{ fontSize: 15, color: "rgba(255,255,255,0.85)", lineHeight: 1.6 }}>
+            Track every cedi. Grow every season.<br />Your farm's financial story starts here.
+          </div>
+          <div style={{ marginTop: 40, display: "flex", gap: 20, justifyContent: "center", flexWrap: "wrap" }}>
+            {["Budget tracking", "Expense logging", "Revenue analytics"].map(f => (
+              <div key={f} style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "rgba(255,255,255,0.9)", fontWeight: 600 }}>
+                <div style={{ width: 6, height: 6, borderRadius: 999, background: "#fbbf24" }} />{f}
+              </div>
+            ))}
+          </div>
         </div>
+      </div>
 
-        <div className="bg-card border rounded-2xl shadow-xl p-8 space-y-6">
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@example.com"
-                  className="pl-10"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
+      {/* Right — form */}
+      <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "60px 48px" }}>
+        <div style={{ width: "100%", maxWidth: 400 }}>
+          <div style={{ marginBottom: 32 }}>
+            <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.025em", color: "var(--gfm-ink-900)", marginBottom: 6 }}>
+              Welcome back
             </div>
+            <div style={{ fontSize: 14, color: "var(--gfm-ink-500)" }}>Sign in to your farm dashboard</div>
+          </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <span className="gfm-label">Email address</span>
+              <input
+                className="gfm-input"
+                type="email"
+                placeholder="ama@growforme.gh"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+              />
+            </label>
+
+            <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <span className="gfm-label">Password</span>
+              <div style={{ position: "relative" }}>
+                <input
+                  className="gfm-input"
+                  type={showPw ? "text" : "password"}
                   placeholder="••••••••"
-                  className="pl-10"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={e => setPassword(e.target.value)}
                   required
+                  style={{ paddingRight: 40 }}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPw(v => !v)}
+                  style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: 0, color: "var(--gfm-ink-400)", cursor: "pointer", padding: 0 }}
+                >
+                  {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
-            </div>
+            </label>
 
             {error && (
-              <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm font-medium">
+              <div style={{ padding: "10px 14px", background: "var(--gfm-danger-50)", border: "1px solid #fecaca", borderRadius: 10, fontSize: 13, color: "var(--gfm-danger)", fontWeight: 600 }}>
                 {error}
               </div>
             )}
 
-            <Button
+            <button
               type="submit"
-              className="w-full h-11 text-base font-semibold"
-              disabled={isLoading}
+              className="gfm-btn gfm-btn-primary"
+              style={{ width: "100%", height: 44, borderRadius: 12, fontSize: 14, justifyContent: "center", marginTop: 4 }}
+              disabled={loading}
             >
-              {isLoading ? (
-                <div className="flex items-center gap-2">
-                  <div className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin rounded-full" />
-                  Logging in...
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <LogIn className="h-4 w-4" />
-                  Sign In
-                </div>
-              )}
-            </Button>
+              {loading
+                ? <div className="gfm-spinner" style={{ width: 18, height: 18, borderWidth: 2 }} />
+                : "Sign in"}
+            </button>
           </form>
 
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <button className="text-primary font-semibold hover:underline">
-                Contact Admin
-              </button>
-            </p>
+          <div style={{ marginTop: 24, textAlign: "center", fontSize: 12.5, color: "var(--gfm-ink-500)" }}>
+            Don't have an account?{" "}
+            <span style={{ color: "var(--gfm-green-600)", fontWeight: 700, cursor: "pointer" }}>
+              Contact your admin
+            </span>
           </div>
         </div>
-
-        <p className="text-center text-xs text-muted-foreground/60">
-          © 2026 EcoDrone Systems. All rights reserved.
-        </p>
       </div>
+
+      <style>{`
+        @media (max-width: 720px) {
+          .gfm-login-wrap { grid-template-columns: 1fr !important; }
+          .gfm-login-brand { min-height: 220px; padding: 40px 24px !important; }
+          .gfm-login-form  { padding: 40px 24px !important; }
+        }
+      `}</style>
     </div>
   );
-};
-
-export default Login;
+}

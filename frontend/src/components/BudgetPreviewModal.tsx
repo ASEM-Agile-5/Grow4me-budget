@@ -1,32 +1,7 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Check, Pencil, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Progress } from "@/components/ui/progress";
+import { Plus, Trash2, Check, Pencil, X } from "lucide-react";
 import { expenseCategories } from "@/lib/mock-data";
+import { fmtC } from "@/components/gfm/primitives";
 
 export interface PreviewBudgetItem {
   id: string;
@@ -66,233 +41,199 @@ const BudgetPreviewModal = ({
   const [newPlanned, setNewPlanned] = useState("");
   const [newDescription, setNewDescription] = useState("");
 
-  useEffect(() => {
-    setItems(initialItems);
-  }, [open, initialItems]);
+  useEffect(() => { setItems(initialItems); }, [open, initialItems]);
+
+  if (!open) return null;
 
   const total = items.reduce((s, i) => s + i.planned_amount, 0);
 
   const handleAdd = () => {
     if (!newCategory || !newPlanned) return;
-    const catId = expenseCategories.indexOf(newCategory).toString(); // Placeholder ID logic
-    setItems((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        category: catId,
-        category_id: catId,
-        category_name: newCategory,
-        planned_amount: Number(newPlanned),
-        description: newDescription,
-        inventory: false,
-        quantity: 0,
-        units: "units",
-      },
-    ]);
+    setItems(prev => [...prev, {
+      id: Date.now().toString(),
+      category: newCategory,
+      category_id: newCategory,
+      category_name: newCategory,
+      planned_amount: Number(newPlanned),
+      description: newDescription,
+      inventory: false,
+      quantity: 0,
+      units: "units",
+    }]);
     setNewCategory("");
     setNewPlanned("");
     setNewDescription("");
   };
 
-  const handleRemove = (id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
-  };
+  const handleRemove = (id: string) => setItems(prev => prev.filter(i => i.id !== id));
 
-  const startEdit = (id: string, currentValue: number) => {
-    setEditingId(id);
-    setEditValue(String(currentValue));
-  };
+  const startEdit = (id: string, current: number) => { setEditingId(id); setEditValue(String(current)); };
 
   const commitEdit = (id: string) => {
-    setItems((prev) =>
-      prev.map((i) =>
-        i.id === id ? { ...i, planned_amount: Number(editValue) || 0 } : i,
-      ),
-    );
+    setItems(prev => prev.map(i => i.id === id ? { ...i, planned_amount: Number(editValue) || 0 } : i));
     setEditingId(null);
   };
 
-  const handleConfirm = () => {
-    onConfirm(items);
-    onOpenChange(false);
-  };
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          {description && (
-            <p className="text-sm text-muted-foreground">{description}</p>
-          )}
-        </DialogHeader>
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 200, display: "grid", placeItems: "center", background: "rgba(15,23,42,0.45)", backdropFilter: "blur(2px)" }}
+      onClick={e => { if (e.target === e.currentTarget) onOpenChange(false); }}
+    >
+      <div
+        className="gfm-card"
+        style={{ width: "min(740px, 95vw)", maxHeight: "88vh", display: "flex", flexDirection: "column", overflow: "hidden", padding: 0 }}
+      >
+        {/* Modal header */}
+        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--gfm-ink-100)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "var(--gfm-ink-900)" }}>{title}</div>
+            {description && <div className="gfm-muted" style={{ fontSize: 13, marginTop: 4 }}>{description}</div>}
+          </div>
+          <button
+            className="gfm-icon-btn"
+            style={{ width: 32, height: 32, borderRadius: 8, border: "1.5px solid var(--gfm-ink-200)", flex: "none" }}
+            onClick={() => onOpenChange(false)}
+          >
+            <X size={15} />
+          </button>
+        </div>
 
-        <div className="flex-1 overflow-y-auto py-2">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Category</TableHead>
-                <TableHead>Details</TableHead>
-                <TableHead className="text-right">Planned Amount</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((item) => {
+        {/* Scrollable items */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 10px 8px" }}>
+          <table className="gfm-table">
+            <thead>
+              <tr>
+                <th style={{ paddingLeft: 14 }}>Category</th>
+                <th>Notes</th>
+                <th style={{ textAlign: "right" }}>Planned</th>
+                <th style={{ textAlign: "right", paddingRight: 14 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map(item => {
                 const isEditing = editingId === item.id;
-
                 return (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">
-                      {item.category_name}
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-[10px] text-muted-foreground space-y-0.5">
-                        {item.description && (
-                          <p className="line-clamp-1 italic">
-                            "{item.description}"
-                          </p>
-                        )}
-                        {item.inventory && (
-                          <p className="font-medium text-primary/70">
-                            Inventory: {item.quantity} {item.units}
-                          </p>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
+                  <tr key={item.id}>
+                    <td style={{ paddingLeft: 14, fontWeight: 700 }}>{item.category_name}</td>
+                    <td className="gfm-muted" style={{ fontSize: 12 }}>
+                      {item.description && <span style={{ fontStyle: "italic" }}>"{item.description}"</span>}
+                      {item.inventory && <span style={{ display: "block", fontWeight: 600, color: "var(--gfm-green-600)" }}>Inv: {item.quantity} {item.units}</span>}
+                    </td>
+                    <td style={{ textAlign: "right" }}>
                       {isEditing ? (
-                        <Input
+                        <input
                           type="number"
-                          className="w-24 h-7 text-sm ml-auto text-right"
+                          className="gfm-input"
+                          style={{ width: 90, textAlign: "right", padding: "4px 8px", fontSize: 13 }}
                           value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
+                          onChange={e => setEditValue(e.target.value)}
                           onBlur={() => commitEdit(item.id)}
-                          onKeyDown={(e) =>
-                            e.key === "Enter" && commitEdit(item.id)
-                          }
+                          onKeyDown={e => e.key === "Enter" && commitEdit(item.id)}
                           autoFocus
                           min={0}
                         />
                       ) : (
-                        <span className="font-semibold">
-                          GHS {item.planned_amount.toLocaleString()}
-                        </span>
+                        <span className="gfm-num" style={{ fontWeight: 800 }}>{fmtC(item.planned_amount)}</span>
                       )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
+                    </td>
+                    <td style={{ textAlign: "right", paddingRight: 14 }}>
+                      <div style={{ display: "inline-flex", gap: 4 }}>
                         <button
-                          onClick={() =>
-                            startEdit(item.id, item.planned_amount)
-                          }
-                          className="rounded-md p-1.5 hover:bg-muted transition-colors"
+                          className="gfm-icon-btn"
+                          style={{ width: 28, height: 28, borderRadius: 8 }}
+                          onClick={() => startEdit(item.id, item.planned_amount)}
                         >
-                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                          <Pencil size={13} />
                         </button>
                         <button
+                          className="gfm-icon-btn"
+                          style={{ width: 28, height: 28, borderRadius: 8, color: "var(--gfm-danger)" }}
                           onClick={() => handleRemove(item.id)}
-                          className="rounded-md p-1.5 hover:bg-destructive/10 transition-colors"
                         >
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          <Trash2 size={13} />
                         </button>
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 );
               })}
 
               {items.length === 0 && (
-                <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="text-center text-muted-foreground py-8"
-                  >
-                    No budget items. Add one below.
-                  </TableCell>
-                </TableRow>
+                <tr>
+                  <td colSpan={4} style={{ textAlign: "center", padding: "28px 0", color: "var(--gfm-ink-400)", fontSize: 13 }}>
+                    No items yet. Add one below.
+                  </td>
+                </tr>
               )}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
 
-          {/* Add new item */}
-          <div className="flex items-end gap-2 pt-4 px-1">
-            <div className="flex-1">
-              <Label className="text-xs">Category</Label>
-              <Select value={newCategory} onValueChange={setNewCategory}>
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  {expenseCategories.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {/* Add row */}
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 8, padding: "12px 4px 4px" }}>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+              <span className="gfm-label">Category</span>
+              <select className="gfm-select" style={{ height: 36 }} value={newCategory} onChange={e => setNewCategory(e.target.value)}>
+                <option value="">Select…</option>
+                {expenseCategories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
-            <div className="flex-1">
-              <Label className="text-xs">Amount</Label>
-              <Input
+            <div style={{ width: 100, display: "flex", flexDirection: "column", gap: 4 }}>
+              <span className="gfm-label">Amount</span>
+              <input
                 type="number"
-                className="h-8 text-sm"
+                className="gfm-input"
+                style={{ height: 36, padding: "4px 10px" }}
                 value={newPlanned}
-                onChange={(e) => setNewPlanned(e.target.value)}
+                onChange={e => setNewPlanned(e.target.value)}
                 placeholder="0"
                 min={0}
               />
             </div>
-            <div className="flex-[2]">
-              <Label className="text-xs">Notes</Label>
-              <Input
-                className="h-8 text-sm"
+            <div style={{ flex: 2, display: "flex", flexDirection: "column", gap: 4 }}>
+              <span className="gfm-label">Notes</span>
+              <input
+                className="gfm-input"
+                style={{ height: 36, padding: "4px 10px" }}
                 value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-                placeholder="Optional notes..."
+                onChange={e => setNewDescription(e.target.value)}
+                placeholder="Optional notes…"
               />
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8"
+            <button
+              className="gfm-btn gfm-btn-ghost"
+              style={{ height: 36, padding: "0 14px", flex: "none" }}
               onClick={handleAdd}
+              disabled={!newCategory || !newPlanned}
             >
-              <Plus className="h-3.5 w-3.5" />
-            </Button>
+              <Plus size={14} />Add
+            </button>
           </div>
         </div>
 
-        <DialogFooter className="border-t pt-4">
-          <div className="flex w-full items-center justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground">Total Budget</p>
-              <p className="text-lg font-bold">GHS {total.toLocaleString()}</p>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleConfirm}
-                disabled={items.length === 0 || loading}
-              >
-                {loading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Check className="mr-2 h-4 w-4" />
-                )}
-                {loading ? "Creating..." : "Confirm Budget"}
-              </Button>
-            </div>
+        {/* Footer */}
+        <div style={{ padding: "14px 24px", borderTop: "1px solid var(--gfm-ink-100)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--gfm-ink-50)" }}>
+          <div>
+            <div className="gfm-label" style={{ marginBottom: 2 }}>Total budget</div>
+            <div className="gfm-num" style={{ fontSize: 18, fontWeight: 800, color: "var(--gfm-ink-900)" }}>{fmtC(total)}</div>
           </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="gfm-btn gfm-btn-ghost" onClick={() => onOpenChange(false)} disabled={loading}>
+              Cancel
+            </button>
+            <button
+              className="gfm-btn gfm-btn-primary"
+              onClick={() => { onConfirm(items); onOpenChange(false); }}
+              disabled={items.length === 0 || loading}
+            >
+              {loading
+                ? <><div className="gfm-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />Creating…</>
+                : <><Check size={14} />Confirm Budget</>
+              }
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

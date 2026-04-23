@@ -41,12 +41,13 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'django.contrib.staticfiles',  
+    'django.contrib.staticfiles',
     'django.contrib.postgres',
     'corsheaders',
     'rest_framework',
     'project',
     'budget',
+    'lite',
 ]
 CORS_ALLOW_CREDENTIALS = True
 
@@ -175,4 +176,8 @@ CSRF_TRUSTED_ORIGINS = [
     'https://*.run.app',
     'http://localhost:8080',
     'http://localhost:5173',
+    'http://localhost:8000',
 ]
+
+MNOTIFY_API_KEY = os.getenv('MNOTIFY_API_KEY', '')
+MNOTIFY_SENDER_ID = os.getenv('MNOTIFY_SENDER_ID', 'G4MBudget')

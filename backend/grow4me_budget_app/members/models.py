@@ -63,6 +63,7 @@ class Accounts(models.Model):
     role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, blank=True, related_name='account_roles')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    phone = models.CharField(max_length=20, blank=True, null=True)
     # Financial/Account Fields
     account_id = models.CharField(max_length=7, unique=True, default= generate_account_number)
 

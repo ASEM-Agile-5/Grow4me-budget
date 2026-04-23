@@ -1,201 +1,202 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard,
-  Wallet,
-  Receipt,
-  TrendingUp,
-  BarChart3,
-  Menu,
-  X,
-  Sprout,
-  FolderOpen,
-  Package,
-  LogOut,
-  Sun,
-  Moon,
-  LayoutGrid,
-  UserCircle,
+  LayoutDashboard, Wallet, Receipt, TrendingUp, BarChart3,
+  Package, CheckSquare, Sprout, Settings, HelpCircle, LogOut,
+  Search, Bell, Plus, Menu, X, ChevronRight, WifiOff, RefreshCw,
 } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
-import { useTheme } from "@/contexts/ThemeContext";
 import { setCookie } from "@/services/services";
-import { useBudgets, useSelectedBudget } from "@/hooks/use-budgets";
+import { useBudgets } from "@/hooks/use-budgets";
+import { useOnlineStatus } from "@/hooks/use-online-status";
+import { useOfflineExpenseQueue } from "@/hooks/use-offline-expense-queue";
+import { timeAgo } from "@/lib/query-cache";
+import { getCacheEntry } from "@/lib/query-cache";
 
-const navItems = [
-  { path: "/", label: "Dashboard", icon: LayoutDashboard },
-  { path: "/budgets", label: "Budgets", icon: Wallet },
-  { path: "/expenses", label: "Expenses", icon: Receipt },
-  { path: "/inventory", label: "Inventory", icon: Package },
-  { path: "/revenue", label: "Revenue", icon: TrendingUp },
-  { path: "/reports", label: "Reports", icon: BarChart3 },
-  { path: "/apps", label: "Apps", icon: LayoutGrid },
+const NAV_MAIN = [
+  { path: "/",          label: "Dashboard",  icon: LayoutDashboard },
+  { path: "/budgets",   label: "Budgets",    icon: Wallet },
+  { path: "/expenses",  label: "Expenses",   icon: Receipt },
+  { path: "/revenue",   label: "Revenue",    icon: TrendingUp },
+  { path: "/inventory", label: "Inventory",  icon: Package },
+  { path: "/tasks",     label: "Tasks",      icon: CheckSquare },
+];
+const NAV_MANAGE = [
+  { path: "/farms",     label: "Farms",      icon: Sprout },
+  { path: "/reports",   label: "Reports",    icon: BarChart3 },
+];
+const NAV_FOOT = [
+  { path: "/settings",  label: "Settings",   icon: Settings },
 ];
 
-const AppLayout = ({ children }: { children: React.ReactNode }) => {
+function NavItem({ path, label, Icon, onClick }: { path: string; label: string; Icon: any; onClick?: () => void }) {
   const location = useLocation();
+  const active = path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
+  return (
+    <Link to={path} className={`gfm-nav-item ${active ? "active" : ""}`} onClick={onClick}>
+      <Icon size={17} strokeWidth={active ? 2.25 : 1.75} />
+      <span>{label}</span>
+    </Link>
+  );
+}
+
+const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { data: budgets = [] } = useBudgets();
-  const { selectedBudgetId } = useSelectedBudget();
-  const selectedBudget = budgets.find(
-    (b: any) => b.id.toString() === selectedBudgetId?.toString(),
-  );
   const { user } = useUser();
-  const { theme, toggleTheme } = useTheme();
+  const { data: budgets = [] } = useBudgets();
+  const isOnline = useOnlineStatus();
+  const { queue, syncQueue } = useOfflineExpenseQueue();
+  const pendingCount = queue.filter((q) => q.status === "pending").length;
+
+  // Last synced = most recent cache entry timestamp
+  const expensesCache = getCacheEntry(["expenses"]);
+  const lastSynced = expensesCache ? timeAgo(expensesCache.ts) : null;
 
   const handleLogout = () => {
-    setCookie("access_token", "", -1); // Clear the cookie
+    setCookie("access_token", "", -1);
     navigate("/login");
   };
 
+  const initials = `${user?.first_name?.[0] ?? ""}${user?.last_name?.[0] ?? "U"}`.toUpperCase();
+  const firstName = user?.first_name ?? "there";
+  const closeSidebar = () => setSidebarOpen(false);
+
+  const SidebarContent = () => (
+    <>
+      <div className="gfm-logo">
+        <img src="/assets/logo_long.png" alt="GrowForMe" onError={(e) => {
+          (e.target as HTMLImageElement).style.display = "none";
+          (e.target as HTMLImageElement).insertAdjacentHTML("afterend", '<span style="font-size:16px;font-weight:800;color:var(--gfm-green-600)">GrowForMe</span>');
+        }} />
+      </div>
+
+      <nav className="gfm-nav">
+        <div className="gfm-nav-group">Overview</div>
+        {NAV_MAIN.map(({ path, label, icon: Icon }) => (
+          <NavItem key={path} path={path} label={label} Icon={Icon} onClick={closeSidebar} />
+        ))}
+        <div className="gfm-nav-group">Manage</div>
+        {NAV_MANAGE.map(({ path, label, icon: Icon }) => (
+          <NavItem key={path} path={path} label={label} Icon={Icon} onClick={closeSidebar} />
+        ))}
+      </nav>
+
+      <div className="gfm-side-foot">
+        {NAV_FOOT.map(({ path, label, icon: Icon }) => (
+          <NavItem key={path} path={path} label={label} Icon={Icon} onClick={closeSidebar} />
+        ))}
+        <button className="gfm-nav-item" onClick={handleLogout}>
+          <LogOut size={17} strokeWidth={1.75} /><span>Log out</span>
+        </button>
+        <div className="gfm-user-card">
+          <div className="gfm-avatar">{initials}</div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 800, color: "var(--gfm-ink-900)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {user?.first_name} {user?.last_name}
+            </div>
+            <div style={{ fontSize: 10.5, color: "var(--gfm-green-700)", fontWeight: 700 }}>Farmer plan</div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
   return (
-    <div className="flex min-h-screen">
+    <div className="gfm-app">
       {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-foreground/30 backdrop-blur-sm lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+      {sidebarOpen && <div className="gfm-overlay" onClick={closeSidebar} />}
 
       {/* Sidebar */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col glass-sidebar transition-transform duration-300 lg:relative lg:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div className="flex h-16 items-center gap-3 px-6">
-          <div 
-            className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-300 ${
-              theme === "dark" 
-                ? "bg-gradient-to-br from-[#4e81f7] to-[#8c52ff] shadow-lg shadow-primary/20" 
-                : "bg-sidebar-accent"
-            }`}
-          >
-            <Sprout className={`h-5 w-5 ${theme === "dark" ? "text-black" : "text-sidebar-primary"}`} />
-          </div>
-          <span className="text-lg font-bold text-sidebar-foreground">
-            FarmBudget
-          </span>
-          <button
-            className="ml-auto lg:hidden text-sidebar-foreground"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <nav className="flex-1 space-y-1 px-3 py-4">
-          {navItems.map((item) => {
-            const isActive =
-              item.path === "/"
-                ? location.pathname === "/"
-                : location.pathname.startsWith(item.path);
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-primary"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                }`}
-              >
-                <item.icon className="h-4.5 w-4.5" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="border-t border-sidebar-border p-4">
-          <div className="rounded-lg bg-sidebar-accent/50 p-3">
-            {selectedBudget ? (
-              <>
-                <p className="text-xs font-medium text-sidebar-foreground/80">
-                  Active Budget
-                </p>
-                <p className="text-sm font-semibold text-sidebar-primary truncate">
-                  {selectedBudget.name}
-                </p>
-                <p className="text-[10px] text-sidebar-foreground/60 mt-0.5">
-                  {selectedBudget.project} · {selectedBudget.year}
-                </p>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-2">
-                  <FolderOpen className="h-4 w-4 text-sidebar-foreground/60" />
-                  <p className="text-xs font-medium text-sidebar-foreground/80">
-                    No budget selected
-                  </p>
-                </div>
-                <Link
-                  to="/budgets"
-                  className="text-xs text-sidebar-primary hover:underline mt-1 inline-block"
-                >
-                  Create or select one →
-                </Link>
-              </>
-            )}
-          </div>
-          {budgets.length > 0 && (
-            <p className="text-[10px] text-sidebar-foreground/50 mt-2 text-center">
-              {budgets.length} budget{budgets.length !== 1 ? "s" : ""} total
-            </p>
-          )}
-        </div>
+      <aside className={`gfm-side ${sidebarOpen ? "open" : ""}`}>
+        <SidebarContent />
       </aside>
 
-      {/* Main content */}
-      <div className="flex flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/50 backdrop-blur-xl px-4 lg:px-6">
-          <button
-            className="lg:hidden text-foreground"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-          <div className="flex-1" />
-          <div className="flex items-center gap-2">
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
-              title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-            >
-              {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-            </button>
-            <div className="flex items-center gap-4 border-l pl-4">
-              <Link 
-                to="/profile" 
-                className="flex items-center gap-3 p-1 rounded-xl hover:bg-muted transition-all duration-300 group"
-              >
-                <div className="hidden sm:flex flex-col items-end">
-                  <div className="text-sm font-semibold group-hover:text-primary transition-colors">
-                    {user?.first_name} {user?.last_name}
-                  </div>
-                  <div className="text-[11px] text-muted-foreground">{user?.email}</div>
-                </div>
-                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs font-bold shadow-lg overflow-hidden border border-white/20 group-hover:scale-105 transition-transform">
-                  {user?.first_name?.[0] || ""}
-                  {user?.last_name?.[0] || "U"}
-                </div>
-              </Link>
-              <button
-                onClick={handleLogout}
-                className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors group"
-                title="Logout"
-              >
-                <LogOut className="h-5 w-5" />
-              </button>
-            </div>
+      {/* Main */}
+      <div className="gfm-main">
+        {/* Desktop topbar */}
+        <div className="gfm-top">
+          <div className="gfm-search">
+            <Search size={15} />
+            <input placeholder="Search budgets, expenses, sales…" />
           </div>
-        </header>
+          <div className="gfm-top-actions">
+            <button className="gfm-icon-btn" title="Help" onClick={() => navigate("/settings")}>
+              <HelpCircle size={17} />
+            </button>
+            <button className="gfm-icon-btn" title="Notifications" style={{ position: "relative" }}>
+              <Bell size={17} />
+              <span className="gfm-ping" />
+            </button>
+            <button className="gfm-btn gfm-btn-amber gfm-btn-sm" onClick={() => navigate("/expenses?log=1")}>
+              <Plus size={13} />Log expense
+            </button>
+            <Link to="/settings" style={{ textDecoration: "none" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px 4px 4px", borderRadius: 999, border: "1px solid var(--gfm-ink-100)", background: "var(--gfm-paper)", cursor: "pointer" }}>
+                <div className="gfm-avatar" style={{ width: 32, height: 32, fontSize: 11 }}>{initials}</div>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--gfm-ink-900)" }}>{firstName}</div>
+              </div>
+            </Link>
+          </div>
+        </div>
 
-        <main className="flex-1 p-4 lg:p-6">{children}</main>
+        {/* Mobile topbar */}
+        <div style={{ display: "none", alignItems: "center", gap: 12, padding: "12px 20px", background: "var(--gfm-paper)", borderBottom: "1px solid var(--gfm-ink-100)", position: "sticky", top: 0, zIndex: 30 }}
+          className="lg:hidden"
+          id="mobile-topbar">
+          <button className="gfm-icon-btn" style={{ border: 0, background: "transparent", color: "var(--gfm-ink-700)" }} onClick={() => setSidebarOpen(true)}>
+            <Menu size={20} />
+          </button>
+          <img src="/assets/logo_long.png" alt="GrowForMe" style={{ height: 24, width: "auto" }} />
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+            <button className="gfm-icon-btn" style={{ width: 36, height: 36, position: "relative" }}>
+              <Bell size={16} /><span className="gfm-ping" />
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile hamburger — always visible on small screens */}
+        <div style={{
+          display: "none",
+        }}
+          id="mobile-ham"
+        />
+
+        {/* Offline status bar */}
+        {!isOnline && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "7px 20px", background: "#78350f",
+            color: "#fef3c7", fontSize: 12, fontWeight: 700,
+            flexShrink: 0,
+          }}>
+            <WifiOff size={13} />
+            <span>Offline mode{lastSynced ? ` · Last synced ${lastSynced}` : ""}</span>
+            {pendingCount > 0 && (
+              <span style={{ marginLeft: 4 }}>· {pendingCount} expense{pendingCount > 1 ? "s" : ""} queued</span>
+            )}
+            {pendingCount > 0 && isOnline && (
+              <button
+                onClick={syncQueue}
+                style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "1px solid #fef3c7", borderRadius: 6, color: "#fef3c7", padding: "2px 8px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}
+              >
+                <RefreshCw size={11} />Sync now
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Content */}
+        <main style={{ flex: 1 }}>{children}</main>
       </div>
+
+      {/* Mobile hamburger button (CSS-driven) */}
+      <style>{`
+        @media (max-width: 1100px) {
+          #mobile-topbar { display: flex !important; }
+          .gfm-top { display: none !important; }
+        }
+      `}</style>
     </div>
   );
 };

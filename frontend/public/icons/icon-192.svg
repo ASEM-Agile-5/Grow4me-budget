@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <rect width="192" height="192" fill="#16A34A"/>
+  <g transform="translate(96,82)" stroke="white" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <line x1="0" y1="30" x2="0" y2="-8"/>
+    <path d="M0,-8 C0,-8 -21,-34 -42,-34 C-42,-13 -21,-8 0,-8"/>
+    <path d="M0,-8 C0,-8 21,-34 42,-34 C42,-13 21,-8 0,-8"/>
+    <path d="M0,8 C0,8 19,-8 34,-4"/>
+  </g>
+  <text x="96" y="165" text-anchor="middle" font-family="Manrope,sans-serif" font-weight="800" font-size="28" fill="white" letter-spacing="-1">GFM</text>
+</svg>

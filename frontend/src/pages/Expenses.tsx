@@ -1,465 +1,547 @@
-import { useState, useMemo } from "react";
-import { Plus, Trash2, Package, CircleAlert } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { expenseCategories } from "@/lib/mock-data";
+import { useState, useEffect } from "react";
+import { Download, Plus, Filter, CalendarDays, Search, X, Check, WifiOff, RefreshCw, AlertCircle } from "lucide-react";
+import { useExpenses, useBudgets, useBudgetDetails, useCreateExpense } from "@/hooks/use-budgets";
+import { useOfflineExpenseQueue } from "@/hooks/use-offline-expense-queue";
+import { useOnlineStatus } from "@/hooks/use-online-status";
+import { Stat, fmtK, fmtC, catColor } from "@/components/gfm/primitives";
+import { Receipt, Wallet, Activity } from "lucide-react";
 import { toast } from "sonner";
+import { useSearchParams } from "react-router-dom";
 
-import {
-  useBudgets,
-  useExpenses,
-  useCreateExpense,
-  useBudgetDetails,
-} from "@/hooks/use-budgets";
+function exportCSV(expenses: any[]) {
+  const header = ["Date", "Category", "Budget", "Notes", "Amount"];
+  const rows = expenses.map((e: any) => [
+    new Date(e.date).toLocaleDateString("en-GB"),
+    e.category_name ?? "",
+    e.budget_name ?? "",
+    (e.notes ?? "").replace(/,/g, ";"),
+    Number(e.amount ?? 0).toFixed(2),
+  ]);
+  const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `expenses_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
-const Expenses = () => {
-  const {
-    data: budgets = [],
-    isLoading: budgetsLoading,
-    refetch: refetchBudgets,
-  } = useBudgets();
-  const {
-    data: expenses = [],
-    isLoading: expensesLoading,
-    error: expensesError,
-  } = useExpenses();
-  const createExpenseMutation = useCreateExpense();
+function LogExpenseModal({
+  onClose,
+  onEnqueue,
+  isOnline,
+}: {
+  onClose: () => void;
+  onEnqueue: (item: any) => void;
+  isOnline: boolean;
+}) {
+  const { data: budgets = [] } = useBudgets();
+  const [budgetId, setBudgetId] = useState("");
+  const [budgetItemId, setBudgetItemId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [notes, setNotes] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [filterCat, setFilterCat] = useState("all");
-  const [filterBudget, setFilterBudget] = useState("all");
-  const [filterYear, setFilterYear] = useState("all");
-  const [isSaving, setIsSaving] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const { data: details } = useBudgetDetails(budgetId || null);
+  const items: any[] = details?.items ?? details?.budget_items ?? [];
+  const createExpense = useCreateExpense();
 
-  const [form, setForm] = useState({
-    budgetId: "",
-    budgetItemId: "",
-    amount: "",
-    date: new Date().toISOString().split("T")[0],
-    notes: "",
-    quantity: "",
-  });
+  const selectedItem = items.find((i: any) => i.id?.toString() === budgetItemId);
+  const isInventory = selectedItem?.inventory === true;
 
-  // Fetch details for the budget selected in the ADD FORM to populate "Budget Item / Category"
-  const { data: selectedFormBudgetDetails } = useBudgetDetails(
-    form.budgetId || null,
-  );
-  const availableItems = useMemo(() => {
-    if (!selectedFormBudgetDetails?.budget_items) return [];
-    return selectedFormBudgetDetails.budget_items.map((it: any) => ({
-      id: it.id,
-      category: it.category_name,
-      trackInventory: true, // API details might vary, assuming true for now
-    }));
-  }, [selectedFormBudgetDetails]);
+  const selectedBudget = budgets.find((b: any) => b.id?.toString() === budgetId);
 
-  // For the pages overall category filter, we'll derive from expenses list
-  const allUsedCategories = useMemo(() => {
-    const cats = new Set(expenses.map((e: any) => e.category_name));
-    return Array.from(cats).sort();
-  }, [expenses]);
-
-  const allUsedYears = useMemo(() => {
-    const years = new Set(
-      expenses.map((e: any) => new Date(e.date).getFullYear()),
-    );
-    return Array.from(years).sort((a: any, b: any) => b - a);
-  }, [expenses]);
-
-  const loading = budgetsLoading || expensesLoading;
-  const error = expensesError ? "Failed to load expenses" : null;
-
-  const filtered = expenses.filter((e: any) => {
-    if (filterCat !== "all" && e.category_name !== filterCat) return false;
-    if (
-      filterBudget !== "all" &&
-      e.budget.toString() !== filterBudget.toString() &&
-      e.budget_name !== filterBudget
-    )
-      return false;
-    if (
-      filterYear !== "all" &&
-      new Date(e.date).getFullYear().toString() !== filterYear.toString()
-    )
-      return false;
-    return true;
-  });
-
-  const totalFiltered = filtered.reduce(
-    (s: number, e: any) => s + (Number(e.amount) || 0),
-    0,
-  );
-
-  const getBudgetName = (budgetId: string | number) =>
-    budgets.find((b: any) => b.id.toString() === budgetId.toString())?.name ??
-    "Unknown";
-
-  const matchedInventoryItem = availableItems.find(
-    (bi: any) =>
-      bi.id?.toString() === form.budgetItemId?.toString() && bi.trackInventory,
-  );
-
-  const handleReview = () => {
-    if (!form.budgetId || !form.budgetItemId || !form.amount || !form.date)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!budgetItemId || !amount || !date) {
+      toast.error("Please fill in all required fields.");
       return;
-    setConfirmOpen(true);
-  };
+    }
+    setSubmitting(true);
 
-  const handleSave = async () => {
-    setConfirmOpen(false);
-    setIsSaving(true);
+    const payload = {
+      budget_item: budgetItemId,
+      amount: Number(amount),
+      date,
+      notes,
+      ...(isInventory && quantity ? { quantity: Number(quantity) } : {}),
+      // Display metadata for offline queue
+      category_name: selectedItem?.category_name ?? "",
+      budget_name: selectedBudget?.name ?? "",
+    };
+
+    if (!isOnline) {
+      // Offline — queue for later
+      onEnqueue(payload);
+      toast.info("You're offline. Expense queued — will sync when connected.", {
+        icon: "📶",
+      });
+      onClose();
+      return;
+    }
+
     try {
-      await createExpenseMutation.mutateAsync({
-        budget_item: form.budgetItemId,
-        amount: Number(form.amount),
-        date: form.date,
-        notes: form.notes,
-        quantity:
-          matchedInventoryItem && form.quantity
-            ? Number(form.quantity)
-            : undefined,
-      });
-      setForm({
-        budgetId: "",
-        budgetItemId: "",
-        amount: "",
-        date: new Date().toISOString().split("T")[0],
-        notes: "",
-        quantity: "",
-      });
-      setDialogOpen(false);
+      await createExpense.mutateAsync(payload);
+      toast.success("Expense logged successfully.");
+      onClose();
     } catch (err: any) {
-      console.error("Failed to save expense:", err);
-      toast.error(err?.response?.data?.message || "Failed to save expense.");
+      // Network error mid-submission — also queue it
+      if (!navigator.onLine || err?.message?.includes("Network")) {
+        onEnqueue(payload);
+        toast.info("Connection lost. Expense queued for sync.", { icon: "📶" });
+        onClose();
+      } else {
+        toast.error(err?.response?.data?.message ?? "Failed to log expense.");
+      }
     } finally {
-      setIsSaving(false);
+      setSubmitting(false);
     }
   };
 
-  const deleteExpense = (id: string) => {
-    // Placeholder
-  };
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 200,
+        display: "grid",
+        placeItems: "center",
+        background: "rgba(15,23,42,0.45)",
+        backdropFilter: "blur(2px)",
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="gfm-card" style={{ width: "min(520px, 95vw)", padding: 0 }}>
+        <div
+          style={{
+            padding: "20px 24px 16px",
+            borderBottom: "1px solid var(--gfm-ink-100)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 16, display: "flex", alignItems: "center", gap: 8 }}>
+              Log Expense
+              {!isOnline && (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "var(--gfm-amber-700, #92400e)",
+                    background: "var(--gfm-amber-50, #fffbeb)",
+                    border: "1px solid #fde68a",
+                    borderRadius: 99,
+                    padding: "2px 8px",
+                  }}
+                >
+                  <WifiOff size={10} />Offline — will queue
+                </span>
+              )}
+            </div>
+            <div className="gfm-muted" style={{ fontSize: 13, marginTop: 3 }}>
+              Record a spend against a budget line item.
+            </div>
+          </div>
+          <button
+            className="gfm-icon-btn"
+            style={{ width: 32, height: 32, borderRadius: 8, border: "1.5px solid var(--gfm-ink-200)" }}
+            onClick={onClose}
+          >
+            <X size={15} />
+          </button>
+        </div>
 
-  if (loading && expenses.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-        <div className="h-10 w-10 border-4 border-primary/20 border-t-primary animate-spin rounded-full" />
-        <p className="text-muted-foreground font-medium">
-          Fetching expenses...
-        </p>
+        <form
+          onSubmit={handleSubmit}
+          style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}
+        >
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span className="gfm-label">
+              Budget <span style={{ color: "var(--gfm-danger)" }}>*</span>
+            </span>
+            <select
+              className="gfm-select"
+              value={budgetId}
+              onChange={(e) => { setBudgetId(e.target.value); setBudgetItemId(""); }}
+              required
+            >
+              <option value="">Select a budget…</option>
+              {budgets.map((b: any) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </label>
+
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span className="gfm-label">
+              Line item <span style={{ color: "var(--gfm-danger)" }}>*</span>
+            </span>
+            <select
+              className="gfm-select"
+              value={budgetItemId}
+              onChange={(e) => setBudgetItemId(e.target.value)}
+              required
+              disabled={!budgetId || items.length === 0}
+            >
+              <option value="">
+                {budgetId
+                  ? items.length === 0
+                    ? "No items in this budget"
+                    : "Select line item…"
+                  : "Select a budget first"}
+              </option>
+              {items.map((item: any) => (
+                <option key={item.id} value={item.id}>
+                  {item.category_name}
+                  {item.description ? ` — ${item.description}` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <span className="gfm-label">
+                Amount (₵) <span style={{ color: "var(--gfm-danger)" }}>*</span>
+              </span>
+              <input
+                className="gfm-input"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                required
+              />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <span className="gfm-label">
+                Date <span style={{ color: "var(--gfm-danger)" }}>*</span>
+              </span>
+              <input
+                className="gfm-input"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                required
+              />
+            </label>
+          </div>
+
+          {isInventory && (
+            <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <span className="gfm-label">Quantity used</span>
+              <input
+                className="gfm-input"
+                type="number"
+                min="0"
+                placeholder="0"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+              />
+            </label>
+          )}
+
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span className="gfm-label">Notes</span>
+            <input
+              className="gfm-input"
+              placeholder="What was this expense for?"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </label>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: 8,
+              paddingTop: 4,
+              borderTop: "1px solid var(--gfm-ink-100)",
+              marginTop: 4,
+            }}
+          >
+            <button
+              type="button"
+              className="gfm-btn gfm-btn-ghost"
+              onClick={onClose}
+              disabled={submitting}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="gfm-btn gfm-btn-primary" disabled={submitting}>
+              {submitting ? (
+                <>
+                  <div className="gfm-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+                  Saving…
+                </>
+              ) : isOnline ? (
+                <><Check size={14} />Log expense</>
+              ) : (
+                <><WifiOff size={14} />Queue offline</>
+              )}
+            </button>
+          </div>
+        </form>
       </div>
-    );
-  }
+    </div>
+  );
+}
+
+export default function Expenses() {
+  const { data: expenses = [], isLoading } = useExpenses();
+  const { queue, enqueue, syncQueue, clearFailed } = useOfflineExpenseQueue();
+  const isOnline = useOnlineStatus();
+  const [search, setSearch] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("log") === "1") {
+      setShowModal(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams]);
+
+  const list = [...expenses].reverse();
+  const filtered = search
+    ? list.filter(
+        (e: any) =>
+          (e.notes ?? "").toLowerCase().includes(search.toLowerCase()) ||
+          (e.category_name ?? "").toLowerCase().includes(search.toLowerCase())
+      )
+    : list;
+
+  const totalSum = list.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
+
+  const thisWeek = list
+    .filter((e: any) => {
+      const d = new Date(e.date);
+      const now = new Date();
+      return (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24) <= 7;
+    })
+    .reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
+
+  const catTot: Record<string, number> = {};
+  list.forEach((e: any) => {
+    catTot[e.category_name] = (catTot[e.category_name] || 0) + Number(e.amount ?? 0);
+  });
+  const topCat = Object.entries(catTot).sort((a, b) => b[1] - a[1])[0];
+
+  const pendingCount = queue.filter((q) => q.status === "pending").length;
+  const failedCount = queue.filter((q) => q.status === "failed").length;
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Expenses</h1>
-          <p className="text-muted-foreground">Track daily farm spending</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => refetchBudgets()}>
-            Refresh
-          </Button>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button id="add-expense-btn">
-                <Plus className="mr-2 h-4 w-4" /> Add Expense
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add Expense</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-2">
-                <div>
-                  <Label>Budget</Label>
-                  <Select
-                    value={form.budgetId}
-                    onValueChange={(v) => {
-                      setForm((f) => ({ ...f, budgetId: v, budgetItemId: "" }));
-                    }}
-                  >
-                    <SelectTrigger id="expense-budget">
-                      <SelectValue placeholder="Select budget" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {budgets.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>
-                          {b.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Budget Item / Category</Label>
-                  <Select
-                    value={form.budgetItemId}
-                    onValueChange={(v) =>
-                      setForm((f) => ({ ...f, budgetItemId: v }))
-                    }
-                    disabled={!form.budgetId}
-                  >
-                    <SelectTrigger id="expense-category">
-                      <SelectValue
-                        placeholder={
-                          form.budgetId
-                            ? "Select item"
-                            : "Select a budget first"
-                        }
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableItems.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
-                          {item.category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Amount (GHS)</Label>
-                  <Input
-                    id="expense-amount"
-                    type="number"
-                    min={0}
-                    value={form.amount}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, amount: e.target.value }))
-                    }
-                  />
-                </div>
-                <div>
-                  <Label>Date</Label>
-                  <Input
-                    id="expense-date"
-                    type="date"
-                    value={form.date}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, date: e.target.value }))
-                    }
-                  />
-                </div>
-                <div>
-                  <Label>Notes</Label>
-                  <Textarea
-                    id="expense-notes"
-                    value={form.notes}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, notes: e.target.value }))
-                    }
-                    placeholder="Optional notes"
-                  />
-                </div>
+    <div className="gfm-page">
+      {showModal && (
+        <LogExpenseModal
+          onClose={() => setShowModal(false)}
+          onEnqueue={enqueue}
+          isOnline={isOnline}
+        />
+      )}
 
-                {/* Inventory quantity — shown when expense matches an inventory-tracked budget item */}
-                {matchedInventoryItem && (
-                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
-                    <div className="flex items-center gap-2 text-xs font-medium text-primary">
-                      <CircleAlert className="h-3.5 w-3.5" />
-                      Adding stock to: {matchedInventoryItem.category}
-                    </div>
-                    <div>
-                      <Label>Quantity Purchased</Label>
-                      <Input
-                        id="expense-inventory-qty"
-                        type="number"
-                        min={0}
-                        value={form.quantity}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            quantity: e.target.value,
-                          }))
-                        }
-                        placeholder="e.g. 10"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <Button
-                  id="save-expense-btn"
-                  className="w-full"
-                  onClick={handleReview}
-                  disabled={isSaving}
-                >
-                  {isSaving ? "Saving..." : "Save Expense"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
-
-      {error && (
-        <div className="p-4 rounded-xl bg-destructive/10 text-destructive text-sm font-medium border border-destructive/20">
-          {error}
+      {/* Offline banner */}
+      {!isOnline && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 16px",
+            background: "#fffbeb",
+            border: "1px solid #fde68a",
+            borderRadius: 12,
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#92400e",
+          }}
+        >
+          <WifiOff size={15} />
+          You're offline. New expenses will be queued and synced automatically when you reconnect.
+          {pendingCount > 0 && (
+            <span style={{ marginLeft: "auto", fontWeight: 800 }}>
+              {pendingCount} pending
+            </span>
+          )}
         </div>
       )}
 
-      {/* Filters and total */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Select value={filterBudget} onValueChange={setFilterBudget}>
-          <SelectTrigger className="w-48" id="filter-budget">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Budgets</SelectItem>
-            {budgets.map((b) => (
-              <SelectItem key={b.id} value={b.id}>
-                {b.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={filterCat} onValueChange={setFilterCat}>
-          <SelectTrigger className="w-44" id="filter-category">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {allUsedCategories.map((c: any) => (
-              <SelectItem key={c} value={c}>
-                {c}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={filterYear} onValueChange={setFilterYear}>
-          <SelectTrigger className="w-32" id="filter-year">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Years</SelectItem>
-            {allUsedYears.map((y: any) => (
-              <SelectItem key={y} value={y.toString()}>
-                {y}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <div className="ml-auto text-sm">
-          Total:{" "}
-          <span className="font-bold">
-            GHS {totalFiltered.toLocaleString()}
-          </span>
-          <span className="text-muted-foreground ml-1">
-            ({filtered.length} items)
-          </span>
+      {/* Failed sync banner */}
+      {failedCount > 0 && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 16px",
+            background: "var(--gfm-danger-50)",
+            border: "1px solid #fecaca",
+            borderRadius: 12,
+            fontSize: 13,
+            fontWeight: 600,
+            color: "var(--gfm-danger)",
+          }}
+        >
+          <AlertCircle size={15} />
+          {failedCount} expense{failedCount > 1 ? "s" : ""} failed to sync after 3 attempts.
+          <button
+            className="gfm-btn gfm-btn-ghost gfm-btn-sm"
+            style={{ marginLeft: "auto", color: "var(--gfm-danger)" }}
+            onClick={clearFailed}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      <div className="gfm-page-head">
+        <div>
+          <h1 className="gfm-h1">Expenses</h1>
+          <div className="gfm-h1-sub">Every coin spent, tied to a budget.</div>
+        </div>
+        <div className="gfm-page-actions">
+          {pendingCount > 0 && isOnline && (
+            <button className="gfm-btn gfm-btn-ghost gfm-btn-sm" onClick={syncQueue}>
+              <RefreshCw size={12} />Sync {pendingCount} queued
+            </button>
+          )}
+          <button
+            className="gfm-btn gfm-btn-ghost"
+            onClick={() => exportCSV([...expenses].reverse())}
+          >
+            <Download size={13} />Export CSV
+          </button>
+          <button className="gfm-btn gfm-btn-primary" onClick={() => setShowModal(true)}>
+            <Plus size={13} />Log expense
+          </button>
         </div>
       </div>
 
-      {/* Expense list */}
-      <div className="rounded-xl border bg-card p-5">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left text-muted-foreground">
-                <th className="pb-3 font-medium">Date</th>
-                <th className="pb-3 font-medium">Budget</th>
-                <th className="pb-3 font-medium">Category</th>
-                <th className="pb-3 font-medium">Notes</th>
-                <th className="pb-3 font-medium text-right">Amount</th>
-                <th className="pb-3 font-medium text-right">Qty</th>
-                <th className="pb-3 font-medium text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
+      <div className="gfm-grid gfm-grid-4">
+        <Stat icon={<Receipt size={16} />}  tone="green" label="Total expenses" value={fmtK(totalSum)} sub={`${list.length} entries`} />
+        <Stat icon={<Wallet size={16} />}   tone="amber" label="This week"      value={fmtK(thisWeek)} sub="last 7 days" />
+        <Stat icon={<Activity size={16} />} tone="ink"   label="Avg / day"      value={fmtK(Math.round(totalSum / 30))} sub="Last 30 days" />
+        <Stat icon={<Filter size={16} />}   tone="blue"  label="Top category"
+          value={topCat ? topCat[0] : "—"} sub={topCat ? fmtC(topCat[1]) + " spent" : "No data"} />
+      </div>
+
+      <div className="gfm-card">
+        <div className="gfm-card-head" style={{ paddingBottom: 14, borderBottom: "1px solid var(--gfm-ink-100)" }}>
+          <div className="gfm-search" style={{ maxWidth: 320, flex: "0 0 320px", height: 36 }}>
+            <Search size={13} />
+            <input
+              placeholder="Search notes, category…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button className="gfm-btn gfm-btn-ghost gfm-btn-sm">
+              <Filter size={11} />Category
+            </button>
+            <button className="gfm-btn gfm-btn-ghost gfm-btn-sm">
+              <CalendarDays size={11} />Date range
+            </button>
+          </div>
+        </div>
+        <div style={{ padding: "0 10px 8px" }}>
+          {isLoading ? (
+            <div style={{ padding: 32, display: "grid", placeItems: "center" }}>
+              <div className="gfm-spinner" />
+            </div>
+          ) : queue.length > 0 || filtered.length > 0 ? (
+            <table className="gfm-table">
+              <thead>
                 <tr>
-                  <td
-                    colSpan={7}
-                    className="py-8 text-center text-muted-foreground"
-                  >
-                    No expenses found
-                  </td>
+                  <th style={{ paddingLeft: 20 }}>Date</th>
+                  <th>Category</th>
+                  <th>Budget</th>
+                  <th>Notes</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: "right", paddingRight: 20 }}>Amount</th>
                 </tr>
-              ) : (
-                filtered.map((e: any) => (
-                  <tr key={e.id} className="border-b last:border-0">
-                    <td className="py-3 text-muted-foreground">
-                      {new Date(e.date).toLocaleDateString()}
+              </thead>
+              <tbody>
+                {/* Queued (offline) rows first */}
+                {queue.map((q) => (
+                  <tr key={q.idempotency_key} style={{ background: q.status === "failed" ? "var(--gfm-danger-50)" : "#fffbeb" }}>
+                    <td className="gfm-num gfm-muted" style={{ paddingLeft: 20 }}>
+                      {new Date(q.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
                     </td>
-                    <td className="py-3">
-                      <span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-                        {e.budget_name}
+                    <td>
+                      <span className="gfm-cat">
+                        <span className="sw" style={{ background: catColor(q.category_name ?? "") }} />
+                        {q.category_name || "—"}
                       </span>
                     </td>
-                    <td className="py-3">
-                      <span className="rounded-md bg-muted px-2 py-1 text-xs font-medium">
+                    <td>
+                      <span className="gfm-badge">{q.budget_name || "—"}</span>
+                    </td>
+                    <td className="gfm-muted" style={{ maxWidth: 260 }}>{q.notes}</td>
+                    <td>
+                      {q.status === "failed" ? (
+                        <span className="gfm-badge over" title={q.error}>
+                          <span className="dot" />Sync failed
+                        </span>
+                      ) : (
+                        <span className="gfm-badge warn">
+                          <span className="dot" />Pending sync
+                        </span>
+                      )}
+                    </td>
+                    <td className="gfm-num" style={{ textAlign: "right", paddingRight: 20, fontWeight: 800 }}>
+                      {fmtC(q.amount)}
+                    </td>
+                  </tr>
+                ))}
+                {/* Normal synced rows */}
+                {filtered.map((e: any) => (
+                  <tr key={e.id}>
+                    <td className="gfm-num gfm-muted" style={{ paddingLeft: 20 }}>
+                      {new Date(e.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                    </td>
+                    <td>
+                      <span className="gfm-cat">
+                        <span className="sw" style={{ background: catColor(e.category_name) }} />
                         {e.category_name}
                       </span>
                     </td>
-                    <td className="py-3">{e.notes}</td>
-                    <td className="py-3 text-right font-medium">
-                      GHS {Number(e.amount).toLocaleString()}
+                    <td>
+                      <span className="gfm-badge">{e.budget_name}</span>
                     </td>
-                    <td className="py-3 text-right text-muted-foreground">
-                      {e.quantity ? e.quantity : "—"}
+                    <td className="gfm-muted" style={{ maxWidth: 260 }}>{e.notes}</td>
+                    <td>
+                      <span className="gfm-badge ok"><span className="dot" />Synced</span>
                     </td>
-                    <td className="py-3 text-right">
-                      <button
-                        onClick={() => deleteExpense(e.id)}
-                        className="rounded-md p-1.5 hover:bg-destructive/10 transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </button>
+                    <td className="gfm-num" style={{ textAlign: "right", paddingRight: 20, fontWeight: 800 }}>
+                      {fmtC(Number(e.amount))}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div
+              style={{ padding: "32px 20px", textAlign: "center", color: "var(--gfm-ink-400)", fontSize: 13 }}
+            >
+              {search ? "No expenses match your search." : "No expenses logged yet."}
+            </div>
+          )}
         </div>
       </div>
-
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You will be unable to make changes to the details of this expense after submission. Are you sure you want to finalize this transaction?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSave}>Continue</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
-};
-
-export default Expenses;
+}

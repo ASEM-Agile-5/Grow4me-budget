@@ -6,47 +6,15 @@ import {
   History,
   MessageSquareText,
   Eye,
-  Loader2,
-  List,
-  AlignLeft,
   LayoutGrid,
-  Check,
-  ChevronsUpDown,
+  Sprout,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import BudgetPreviewModal, {
   type PreviewBudgetItem,
 } from "@/components/BudgetPreviewModal";
 import {
   useProjects,
-  useCreateBudget,
   useBulkCreateBudgetItems,
   useAITranslateBudget,
   useBudgetCategories,
@@ -54,29 +22,28 @@ import {
   useBudgets,
 } from "@/hooks/use-budgets";
 import { getBudgetDetailsAPI } from "@/services/services";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import { fmtC } from "@/components/gfm/primitives";
 
 const currentYear = new Date().getFullYear();
 const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+
+const TABS = [
+  { key: "templates", label: "Templates", Icon: FileText },
+  { key: "historical", label: "Historical", Icon: History },
+  { key: "text", label: "Text Import", Icon: MessageSquareText },
+];
 
 const CreateBudget = () => {
   const navigate = useNavigate();
   const { data: projects = [] } = useProjects();
   const { data: categories = [] } = useBudgetCategories();
-  const { data: templates = [], isLoading: templatesLoading } = useBudgetTemplates();
+  const { data: templates = [], isLoading: templatesLoading } =
+    useBudgetTemplates();
   const { data: budgets = [], isLoading: budgetsLoading } = useBudgets();
-  const createBudgetMutation = useCreateBudget();
   const bulkCreateItemsMutation = useBulkCreateBudgetItems();
   const aiTranslateMutation = useAITranslateBudget();
 
+  const [activeTab, setActiveTab] = useState("templates");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewTitle, setPreviewTitle] = useState("");
   const [previewDescription, setPreviewDescription] = useState("");
@@ -86,23 +53,21 @@ const CreateBudget = () => {
   const [parsing, setParsing] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [fetchingHistorical, setFetchingHistorical] = useState(false);
-  const [showValidationAlert, setShowValidationAlert] = useState(false);
-  const [projectSearchOpen, setProjectSearchOpen] = useState(false);
+  const [validationError, setValidationError] = useState("");
 
-  // Budget Metadata
-  const [budgetName, setBudgetName] = useState("");
+  const [budgetName, setbudgetName] = useState("");
   const [selectedProject, setSelectedProject] = useState("");
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
   const [description, setDescription] = useState("");
 
   const openPreview = (
     title: string,
-    description: string,
+    desc: string,
     items: PreviewBudgetItem[],
-    icon: string = "📋",
+    icon = "📋",
   ) => {
     setPreviewTitle(title);
-    setPreviewDescription(description);
+    setPreviewDescription(desc);
     setPreviewItems(items);
     setPreviewIcon(icon);
     setPreviewOpen(true);
@@ -110,34 +75,34 @@ const CreateBudget = () => {
 
   const validateMetadata = () => {
     if (!budgetName.trim() || !selectedProject) {
-      toast.error("Please fill in Budget Name and select a Project before continuing.");
       setShowValidationAlert(true);
       return false;
     }
+    setValidationError("");
     return true;
   };
 
-  // --- Template ---
   const handleSelectTemplate = (templateId: string) => {
     if (!validateMetadata()) return;
     const template = templates.find((t: any) => t.id === templateId);
     if (!template) return;
-    const items: PreviewBudgetItem[] = template.budget_items.map((it, i) => {
-      const cat = categories.find((c: any) => c.id === it.category);
-      const catId = cat?.id || it.category;
-      const catName = cat?.category_name || it.category_name || "Unknown";
-      return {
-        id: `tpl-${i}`,
-        category: catId,
-        category_id: catId,
-        category_name: catName,
-        planned_amount: it.planned_amount,
-        description: it.description || "",
-        inventory: it.inventory,
-        quantity: it.quantity,
-        units: it.units,
-      };
-    });
+    const items: PreviewBudgetItem[] = template.budget_items.map(
+      (it: any, i: number) => {
+        const cat = categories.find((c: any) => c.id === it.category);
+        const catId = cat?.id || it.category;
+        return {
+          id: `tpl-${i}`,
+          category: catId,
+          category_id: catId,
+          category_name: cat?.category_name || it.category_name || "Unknown",
+          planned_amount: it.planned_amount,
+          description: it.description || "",
+          inventory: it.inventory,
+          quantity: it.quantity,
+          units: it.units,
+        };
+      },
+    );
     openPreview(
       `New Budget from: ${template.name}`,
       template.description,
@@ -150,15 +115,14 @@ const CreateBudget = () => {
     if (!validateMetadata()) return;
     const allItems: PreviewBudgetItem[] = [];
     templates.forEach((template: any) => {
-      template.budget_items.forEach((it) => {
+      template.budget_items.forEach((it: any) => {
         const cat = categories.find((c: any) => c.id === it.category);
         const catId = cat?.id || it.category;
-        const catName = cat?.category_name || it.category_name || "Unknown";
         allItems.push({
           id: `all-${allItems.length}`,
           category: catId,
           category_id: catId,
-          category_name: catName,
+          category_name: cat?.category_name || it.category_name || "Unknown",
           planned_amount: it.planned_amount,
           description: it.description || `From ${template.name} template`,
           inventory: it.inventory,
@@ -167,60 +131,50 @@ const CreateBudget = () => {
         });
       });
     });
-
     openPreview(
       "All Templates Combined",
-      "Showing all available line items from all farm templates",
+      "All available line items from every farm template",
       allItems,
     );
   };
 
-  // --- Historical ---
   const handleSelectHistorical = async (budgetId: string) => {
     if (!validateMetadata()) return;
     const budget = budgets.find((b: any) => b.id === budgetId);
     if (!budget) return;
-
     setFetchingHistorical(true);
     try {
       const details = await getBudgetDetailsAPI(budgetId);
-      const budgetItems = details.budget_items || [];
-
-      const items: PreviewBudgetItem[] = budgetItems.map((b: any) => {
-        // Try to find the category locally to get the display name
-        const cat = categories.find(
-          (c: any) => c.category_name === b.category_name,
-        );
-        const catId = cat?.id || b.category;
-        
-        return {
-          id: `hist-${b.id}`,
-          category: catId,
-          category_id: catId,
-          category_name: b.category_name || "Unknown",
-          planned_amount: parseFloat(b.planned_amount) || 0,
-          description: b.description || `Historical data from ${budget.name}`,
-          inventory: b.inventory || false,
-          quantity: b.quantity || 0,
-          units: b.units || "",
-        };
-      });
-
+      const items: PreviewBudgetItem[] = (details.budget_items || []).map(
+        (b: any) => {
+          const cat = categories.find(
+            (c: any) => c.category_name === b.category_name,
+          );
+          return {
+            id: `hist-${b.id}`,
+            category: cat?.id || b.category,
+            category_id: cat?.id || b.category,
+            category_name: b.category_name || "Unknown",
+            planned_amount: parseFloat(b.planned_amount) || 0,
+            description: b.description || `Historical data from ${budget.name}`,
+            inventory: b.inventory || false,
+            quantity: b.quantity || 0,
+            units: b.units || "",
+          };
+        },
+      );
       openPreview(
         `New Budget from: ${budget.name}`,
-        `Based on your previously created budget for ${budget.project} (${budget.year})`,
+        `Based on ${budget.project} (${budget.year})`,
         items,
-        "📋",
       );
-    } catch (error) {
+    } catch {
       toast.error("Failed to fetch historical budget details.");
-      console.error(error);
     } finally {
       setFetchingHistorical(false);
     }
   };
 
-  // --- Text parse ---
   const handleParseText = async () => {
     if (!validateMetadata()) return;
     if (!textInput.trim()) {
@@ -228,7 +182,6 @@ const CreateBudget = () => {
       return;
     }
     setParsing(true);
-
     try {
       const response = await aiTranslateMutation.mutateAsync({
         text: textInput,
@@ -252,20 +205,13 @@ const CreateBudget = () => {
         parsed,
       );
     } catch (error: any) {
-      const errType = error?.response?.data?.type;
-      const errMsg = error?.response?.data?.error || "";
-      if (errType === "ResourceExhausted" || errMsg.includes("429") || errMsg.toLowerCase().includes("quota")) {
-        toast.error("You have reached your Gemini quota. Please check your plan and billing details at aistudio.google.com.");
-      } else {
-        toast.error("Failed to parse budget text. Please try again.");
-      }
+      toast.error("Failed to parse budget text. Please try again.");
       console.error(error);
     } finally {
       setParsing(false);
     }
   };
 
-  // --- Confirm ---
   const handleConfirm = async (items: PreviewBudgetItem[]) => {
     if (!budgetName || !selectedProject || !selectedYear) {
       toast.error(
@@ -273,351 +219,510 @@ const CreateBudget = () => {
       );
       return;
     }
-
     setIsConfirming(true);
     try {
-      // Combine budget metadata and items into a single payload
-      const payload = {
+      await bulkCreateItemsMutation.mutateAsync({
         create: true,
         name: budgetName,
         project: selectedProject,
         year: Number(selectedYear),
-        description: description,
+        description,
         icon: previewIcon,
         budget_items: items.map((item) => ({
-          budget: null, // As requested in the platform-style payload
+          budget: null,
           category: item.category_id || item.category,
           planned_amount: item.planned_amount,
           inventory: item.inventory,
           quantity: item.quantity,
           units: item.units,
         })),
-      };
-
-      await bulkCreateItemsMutation.mutateAsync(payload);
-
-      toast.success(`Budget successfully created with ${items.length} items!`);
+      });
+      toast.success(`Budget created with ${items.length} items!`);
       navigate("/budgets");
     } catch (error: any) {
       toast.error(
         error?.response?.data?.message ||
           "Failed to create budget. Please try again.",
       );
-      console.error(error);
     } finally {
       setIsConfirming(false);
     }
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate("/budgets")}
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Create Budget</h1>
-          <p className="text-muted-foreground">
-            Choose a method to start your budget
-          </p>
+    <div className="gfm-page">
+      {/* Header */}
+      <div className="gfm-page-head">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            className="gfm-icon-btn"
+            onClick={() => navigate("/budgets")}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              border: "1.5px solid var(--gfm-ink-200)",
+            }}
+          >
+            <ArrowLeft size={16} />
+          </button>
+          <div>
+            <h1 className="gfm-h1">Create Budget</h1>
+            <div className="gfm-h1-sub">
+              Choose a method to start your budget
+            </div>
+          </div>
         </div>
       </div>
 
-      <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="pt-6">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label>Budget Name</Label>
-              <Input
-                placeholder="e.g. 2026 Maize Season"
-                value={budgetName}
-                onChange={(e) => setBudgetName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2 flex flex-col">
-              <Label>Project</Label>
-              <Popover
-                open={projectSearchOpen}
-                onOpenChange={setProjectSearchOpen}
-              >
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={projectSearchOpen}
-                    className="w-full justify-between font-normal"
-                  >
-                    {selectedProject
-                      ? projects.find(
-                          (p: any) => p.id.toString() === selectedProject,
-                        )?.name ||
-                        projects.find(
-                          (p: any) => p.id.toString() === selectedProject,
-                        )?.title ||
-                        projects.find(
-                          (p: any) => p.id.toString() === selectedProject,
-                        )?.projectName ||
-                        "Select project"
-                      : "Select project"}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                  <Command>
-                    <CommandInput placeholder="Search projects..." />
-                    <CommandList>
-                      <CommandEmpty>No project found.</CommandEmpty>
-                      <CommandGroup>
-                        {projects.map((p: any) => {
-                          const pId = (p.id || p.project_id).toString();
-                          const pName = p.name || p.title || p.projectName;
-                          return (
-                            <CommandItem
-                              key={pId}
-                              value={pName}
-                              onSelect={() => {
-                                setSelectedProject(pId);
-                                setProjectSearchOpen(false);
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  selectedProject === pId
-                                    ? "opacity-100"
-                                    : "opacity-0",
-                                )}
-                              />
-                              {pName}
-                            </CommandItem>
-                          );
-                        })}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="space-y-2">
-              <Label>Year</Label>
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {yearOptions.map((y) => (
-                    <SelectItem key={y} value={y.toString()}>
-                      {y}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="mt-4 space-y-2">
-            <Label>Description (Optional)</Label>
-            <Input
+      {/* Metadata card */}
+      <div className="gfm-card gfm-card-p">
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.07em",
+            color: "var(--gfm-ink-400)",
+            textTransform: "uppercase",
+            marginBottom: 14,
+          }}
+        >
+          Budget details
+        </div>
+        <div className="gfm-grid gfm-grid-3" style={{ gap: 14 }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span className="gfm-label">Budget Name</span>
+            <input
+              className="gfm-input"
+              placeholder="e.g. 2026 Maize Season"
+              value={budgetName}
+              onChange={(e) => {
+                setbudgetName(e.target.value);
+                setValidationError("");
+              }}
+            />
+          </label>
+
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span className="gfm-label">Project</span>
+            <select
+              className="gfm-select"
+              value={selectedProject}
+              onChange={(e) => {
+                setSelectedProject(e.target.value);
+                setValidationError("");
+              }}
+            >
+              <option value="">Select project…</option>
+              {projects.map((p: any) => {
+                const id = (p.id || p.project_id).toString();
+                const name = p.name || p.title || p.projectName;
+                return (
+                  <option key={id} value={id}>
+                    {name}
+                  </option>
+                );
+              })}
+            </select>
+          </label>
+
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span className="gfm-label">Year</span>
+            <select
+              className="gfm-select"
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+            >
+              {yearOptions.map((y) => (
+                <option key={y} value={y.toString()}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div style={{ marginTop: 14 }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span className="gfm-label">Description (Optional)</span>
+            <input
+              className="gfm-input"
               placeholder="Brief description of this budget"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
+          </label>
+        </div>
+
+        {validationError && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: "10px 14px",
+              background: "var(--gfm-danger-50)",
+              border: "1px solid #fecaca",
+              borderRadius: 10,
+              fontSize: 13,
+              color: "var(--gfm-danger)",
+              fontWeight: 600,
+            }}
+          >
+            {validationError}
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
 
-      <Tabs defaultValue="templates" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="templates" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" /> Templates
-          </TabsTrigger>
-          <TabsTrigger value="historical" className="flex items-center gap-2">
-            <History className="h-4 w-4" /> Historical
-          </TabsTrigger>
-          <TabsTrigger value="text" className="flex items-center gap-2">
-            <MessageSquareText className="h-4 w-4" /> Text Import
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Templates Tab */}
-        <TabsContent value="templates" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              Select a predefined template to get started quickly. You can
-              customize it before confirming.
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSelectAllTemplates}
+      {/* Tab bar */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 10,
+        }}
+      >
+        <div className="gfm-seg" style={{ gap: 2 }}>
+          {TABS.map(({ key, label, Icon }) => (
+            <button
+              key={key}
+              className={activeTab === key ? "active" : ""}
+              onClick={() => setActiveTab(key)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "7px 14px",
+              }}
             >
-              <LayoutGrid className="mr-2 h-4 w-4" /> Preview All Templates
-            </Button>
+              <Icon size={13} />
+              {label}
+            </button>
+          ))}
+        </div>
+        {activeTab === "templates" && (
+          <button
+            className="gfm-btn gfm-btn-ghost gfm-btn-sm"
+            onClick={handleSelectAllTemplates}
+          >
+            <LayoutGrid size={13} />
+            Preview All Templates
+          </button>
+        )}
+      </div>
+
+      {/* Templates tab */}
+      {activeTab === "templates" &&
+        (templatesLoading ? (
+          <div style={{ display: "grid", placeItems: "center", padding: 56 }}>
+            <div className="gfm-spinner" />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {templatesLoading ? (
-              <div className="col-span-full flex flex-col items-center justify-center py-12 space-y-4">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">
-                  Loading budget templates...
-                </p>
-              </div>
-            ) : templates.length === 0 ? (
-              <div className="col-span-full text-center py-12 rounded-xl border border-dashed text-muted-foreground text-sm">
-                No budget templates available.
-              </div>
-            ) : (
-              templates.map((template: any) => (
+        ) : templates.length === 0 ? (
+          <div className="gfm-empty" style={{ padding: "56px 28px" }}>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>
+              No templates available
+            </div>
+            <div style={{ fontSize: 13 }}>
+              Check back later or use historical data.
+            </div>
+          </div>
+        ) : (
+          <div className="gfm-grid gfm-grid-3">
+            {templates.map((template: any) => {
+              const templateTotal = template.budget_items.reduce(
+                (s: number, i: any) => s + i.planned_amount,
+                0,
+              );
+              return (
                 <div
                   key={template.id}
-                  className="group rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-primary hover:shadow-md"
+                  className="gfm-card gfm-card-p"
+                  style={{
+                    cursor: "pointer",
+                    transition: "box-shadow 0.15s, border-color 0.15s",
+                  }}
                   onClick={() => handleSelectTemplate(template.id)}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.boxShadow = "var(--gfm-shadow-lg)")
+                  }
+                  onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "")}
                 >
-                  <div className="flex items-start gap-3">
-                    <span className="text-3xl">{template.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-sm">{template.name}</h3>
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 12,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <span style={{ fontSize: 28, lineHeight: 1 }}>
+                      {template.icon}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontWeight: 800,
+                          fontSize: 14,
+                          color: "var(--gfm-ink-900)",
+                          marginBottom: 4,
+                        }}
+                      >
+                        {template.name}
+                      </div>
+                      <div
+                        className="gfm-muted"
+                        style={{
+                          fontSize: 12,
+                          lineHeight: 1.5,
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                        }}
+                      >
                         {template.description}
-                      </p>
+                      </div>
                     </div>
                   </div>
-                  <div className="mt-4 flex items-center justify-between">
-                    <div className="flex flex-wrap gap-1">
-                      {template.budget_items.slice(0, 3).map((item: any, i: number) => (
-                        <span
-                          key={i}
-                          className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
-                        >
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 5,
+                      marginBottom: 12,
+                    }}
+                  >
+                    {template.budget_items
+                      .slice(0, 3)
+                      .map((item: any, i: number) => (
+                        <span key={i} className="gfm-badge">
                           {item.category_name}
                         </span>
                       ))}
-                      {template.budget_items.length > 3 && (
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                          +{template.budget_items.length - 3}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs font-semibold text-primary">
-                      GHS{" "}
-                      {template.budget_items
-                        .reduce((s: number, i: any) => s + i.planned_amount, 0)
-                        .toLocaleString()}
-                    </p>
+                    {template.budget_items.length > 3 && (
+                      <span className="gfm-badge">
+                        +{template.budget_items.length - 3}
+                      </span>
+                    )}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full mt-3 opacity-0 group-hover:opacity-100 transition-opacity"
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      paddingTop: 10,
+                      borderTop: "1px solid var(--gfm-ink-100)",
+                    }}
                   >
-                    <Eye className="mr-2 h-3.5 w-3.5" /> Preview & Edit
-                  </Button>
-                </div>
-              ))
-            )}
-          </div>
-        </TabsContent>
-
-        {/* Historical Tab */}
-        <TabsContent value="historical" className="mt-6">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {budgetsLoading || fetchingHistorical ? (
-              <div className="col-span-full flex flex-col items-center justify-center py-12 space-y-4">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">
-                  {budgetsLoading
-                    ? "Loading previous budgets..."
-                    : "Fetching budget details..."}
-                </p>
-              </div>
-            ) : budgets.length === 0 ? (
-              <div className="col-span-full text-center py-12 rounded-xl border border-dashed text-muted-foreground text-sm">
-                No historical budgets found to use as a basis.
-              </div>
-            ) : (
-              budgets.map((budget: any) => (
-                <div
-                  key={budget.id}
-                  className="group rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-primary hover:shadow-md"
-                  onClick={() => handleSelectHistorical(budget.id)}
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="h-10 w-10 flex items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <History className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-sm truncate">
-                        {budget.name}
-                      </h3>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {budget.project} • {budget.year}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                        Season Total
-                      </p>
-                      <p className="text-sm font-bold text-primary">
-                        GHS {budget.planned?.toLocaleString() || "0"}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 800,
+                        color: "var(--gfm-green-600)",
+                      }}
                     >
-                      Use as Basis <ArrowLeft className="ml-2 h-3.5 w-3.5 rotate-180" />
-                    </Button>
+                      {fmtC(templateTotal)}
+                    </span>
+                    <button
+                      className="gfm-btn gfm-btn-ghost gfm-btn-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectTemplate(template.id);
+                      }}
+                    >
+                      <Eye size={12} />
+                      Preview
+                    </button>
                   </div>
                 </div>
-              ))
-            )}
+              );
+            })}
           </div>
-        </TabsContent>
+        ))}
 
-        {/* Text Import Tab */}
-        <TabsContent value="text" className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Describe your budget in your own words, listing items and their
-            costs naturally.
-          </p>
-
-          <div className="rounded-xl border bg-card p-5 space-y-4">
-            <div>
-              <Label>Describe your budget</Label>
-              <Textarea
-                className="mt-2 min-h-[200px] text-sm"
-                placeholder="Type a list of budget items or describe your budget in your own words or Describe a project i.e. I need seeds for 3000, fertilizer costing 4000, labor at 3500, transport for 2000, and pesticides worth 1200. I also need equipment."
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                Describe naturally, e.g.{" "}
-                <code className="bg-muted px-1 rounded">seeds for 3000</code> or{" "}
-                <code className="bg-muted px-1 rounded">
-                  5000 on fertilizer
-                </code>
-              </p>
-            </div>
-            <Button
-              onClick={handleParseText}
-              disabled={parsing || !textInput.trim()}
+      {/* Historical tab */}
+      {activeTab === "historical" &&
+        (budgetsLoading || fetchingHistorical ? (
+          <div style={{ display: "grid", placeItems: "center", padding: 56 }}>
+            <div className="gfm-spinner" />
+            <div
+              style={{
+                marginTop: 12,
+                fontSize: 13,
+                color: "var(--gfm-ink-400)",
+              }}
             >
-              {parsing ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Eye className="mr-2 h-4 w-4" />
-              )}
-              {parsing ? "Parsing..." : "Preview Budget"}
-            </Button>
+              {budgetsLoading
+                ? "Loading previous budgets…"
+                : "Fetching budget details…"}
+            </div>
           </div>
-        </TabsContent>
-      </Tabs>
+        ) : budgets.length === 0 ? (
+          <div className="gfm-empty" style={{ padding: "56px 28px" }}>
+            <Sprout
+              size={28}
+              style={{ margin: "0 auto 12px", color: "var(--gfm-green-400)" }}
+            />
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>
+              No historical budgets
+            </div>
+            <div style={{ fontSize: 13 }}>
+              Create your first budget to use this feature later.
+            </div>
+          </div>
+        ) : (
+          <div className="gfm-grid gfm-grid-3">
+            {budgets.map((budget: any) => (
+              <div
+                key={budget.id}
+                className="gfm-card gfm-card-p"
+                style={{ cursor: "pointer", transition: "box-shadow 0.15s" }}
+                onClick={() => handleSelectHistorical(budget.id)}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.boxShadow = "var(--gfm-shadow-lg)")
+                }
+                onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "")}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 12,
+                    marginBottom: 14,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 12,
+                      background: "var(--gfm-green-50)",
+                      color: "var(--gfm-green-600)",
+                      display: "grid",
+                      placeItems: "center",
+                      flex: "none",
+                    }}
+                  >
+                    <History size={18} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontWeight: 800,
+                        fontSize: 14,
+                        color: "var(--gfm-ink-900)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {budget.name}
+                    </div>
+                    <div
+                      className="gfm-muted"
+                      style={{ fontSize: 12, marginTop: 3 }}
+                    >
+                      {budget.project} · {budget.year}
+                    </div>
+                  </div>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    paddingTop: 10,
+                    borderTop: "1px solid var(--gfm-ink-100)",
+                  }}
+                >
+                  <div>
+                    <div className="gfm-label" style={{ marginBottom: 2 }}>
+                      Season total
+                    </div>
+                    <div
+                      style={{
+                        fontWeight: 800,
+                        fontSize: 14,
+                        color: "var(--gfm-green-600)",
+                      }}
+                    >
+                      {fmtC(budget.planned ?? 0)}
+                    </div>
+                  </div>
+                  <button
+                    className="gfm-btn gfm-btn-ghost gfm-btn-sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelectHistorical(budget.id);
+                    }}
+                  >
+                    Use as basis
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+
+      {/* Text Import tab */}
+      {activeTab === "text" && (
+        <div className="gfm-card gfm-card-p" style={{ maxWidth: 680 }}>
+          <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>
+            Describe your budget
+          </div>
+          <div className="gfm-muted" style={{ fontSize: 13, marginBottom: 16 }}>
+            List items and costs naturally in any language — AI will extract the
+            line items for you.
+          </div>
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span className="gfm-label">Your budget description</span>
+            <textarea
+              className="gfm-input"
+              style={{
+                minHeight: 180,
+                resize: "vertical",
+                fontFamily: "inherit",
+              }}
+              placeholder={
+                "e.g. I need seeds for 3000, fertilizer costing 4000, labor at 3500, transport for 2000, and pesticides worth 1200."
+              }
+              value={textInput}
+              onChange={(e) => setTextInput(e.target.value)}
+            />
+          </label>
+          <div
+            style={{
+              marginTop: 8,
+              fontSize: 11.5,
+              color: "var(--gfm-ink-400)",
+            }}
+          >
+            Tip: write naturally — "seeds for 3000" or "5000 on fertilizer" both
+            work.
+          </div>
+          <button
+            className="gfm-btn gfm-btn-primary"
+            style={{ marginTop: 16 }}
+            onClick={handleParseText}
+            disabled={parsing || !textInput.trim()}
+          >
+            {parsing ? (
+              <>
+                <div
+                  className="gfm-spinner"
+                  style={{ width: 14, height: 14, borderWidth: 2 }}
+                />
+                Parsing…
+              </>
+            ) : (
+              <>
+                <Eye size={14} />
+                Preview Budget
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       <BudgetPreviewModal
         open={previewOpen}
@@ -628,28 +733,6 @@ const CreateBudget = () => {
         onConfirm={handleConfirm}
         loading={isConfirming}
       />
-
-      <AlertDialog
-        open={showValidationAlert}
-        onOpenChange={setShowValidationAlert}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Missing Budget Information</AlertDialogTitle>
-            <AlertDialogDescription>
-              Please provide a <strong>Budget Name</strong> and select a{" "}
-              <strong>Project</strong> before proceeding with templates or
-              imports. This information is required to establish the context for
-              your new budget.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setShowValidationAlert(false)}>
-              Got it
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };
