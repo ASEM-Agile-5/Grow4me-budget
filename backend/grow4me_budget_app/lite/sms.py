@@ -1,5 +1,8 @@
+import logging
 import requests
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 def _normalize_phone(phone):
@@ -20,7 +23,11 @@ def send_sms(phone, message):
             "msg": message,
             "sender_id": settings.MNOTIFY_SENDER_ID,
         }
+        logger.warning("SMS payload (no key): %s", {k: v for k, v in payload.items() if k != "key"})
         resp = requests.post(url, data=payload, timeout=10)
-        return resp.json()
+        result = resp.json()
+        logger.warning("SMS response status=%s body=%s", resp.status_code, result)
+        return result
     except Exception as e:
+        logger.error("SMS exception: %s", e)
         return {"status": "error", "message": str(e)}
