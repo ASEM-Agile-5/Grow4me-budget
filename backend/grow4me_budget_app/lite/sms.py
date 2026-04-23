@@ -23,8 +23,8 @@ def send_sms(phone, message):
         payload = {
             "key": settings.MNOTIFY_API_KEY,
             "recipient[]": _normalize_phone(phone),
-            "msg": message,
-            "sender_id": settings.MNOTIFY_SENDER_ID,
+            "message": message,
+            "sender": settings.MNOTIFY_SENDER_ID,
         }
         logger.warning("SMS payload (no key): %s", {k: v for k, v in payload.items() if k != "key"})
         resp = requests.post(url, data=payload, timeout=10)
