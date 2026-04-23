@@ -80,6 +80,7 @@ def home_view(request):
         'phone': phone,
         'name': name,
         'msg': request.GET.get('msg', ''),
+        'sms_err': request.GET.get('sms_err', 'unknown error'),
     })
 
 
@@ -215,12 +216,18 @@ def send_sms_view(request):
         f"Balance: GHS {balance:,.0f}"
     )
 
+    from django.conf import settings as django_settings
+    if not django_settings.MNOTIFY_API_KEY:
+        return redirect('/lite/?msg=sms_fail&sms_err=API+key+not+configured')
+
     result = send_sms(phone, msg)
-    print(f"[SMS] phone={phone} result={result}")
-    status = result.get('status', '')
-    if str(status) in ('success', '200', 'true', '1'):
+    print("mNotify response:", result)
+    status = str(result.get('status', '')).lower()
+    if status in ('success', '200', 'true', '1'):
         return redirect('/lite/?msg=sms_ok')
-    return redirect('/lite/?msg=sms_fail')
+    err = result.get('message', str(result))[:80]
+    from urllib.parse import quote
+    return redirect('/lite/?msg=sms_fail&sms_err=' + quote(str(err)))
 
 
 def logout_view(request):
