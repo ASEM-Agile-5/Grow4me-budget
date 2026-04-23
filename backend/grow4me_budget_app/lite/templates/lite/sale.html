@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Record Sale</title>
+</head>
+<body>
+<b>Record Sale</b>
+{% if error %}<p><b style="color:red">{{ error }}</b></p>{% endif %}
+{% if budgets %}
+<form method="post" action="/lite/sale/">
+{% csrf_token %}
+<p>Budget:<br>
+<select name="budget">
+{% for b in budgets %}
+<option value="{{ b.id }}">{{ b.name }}</option>
+{% endfor %}
+</select></p>
+<p>Product/Item:<br><input type="text" name="product" size="25" maxlength="100" required></p>
+<p>Amount (GHS):<br><input type="number" name="amount" step="0.01" min="0.01" size="15" required></p>
+<p><input type="submit" value="Save Sale"></p>
+</form>
+{% else %}
+<p>No budgets found for this year. Please create a budget first.</p>
+{% endif %}
+<br><a href="/lite/">Back</a>
+</body>
+</html>

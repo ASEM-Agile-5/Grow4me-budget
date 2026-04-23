@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Set Phone</title>
+</head>
+<body>
+<b>Set Phone Number</b>
+<p>Used to receive SMS summaries.</p>
+{% if error %}<p><b style="color:red">{{ error }}</b></p>{% endif %}
+<form method="post" action="/lite/phone/">
+{% csrf_token %}
+<p>Phone number:<br><input type="tel" name="phone" size="20" maxlength="20" placeholder="0244123456" required></p>
+<p><input type="submit" value="Save"></p>
+</form>
+<br><a href="/lite/">Back</a>
+</body>
+</html>

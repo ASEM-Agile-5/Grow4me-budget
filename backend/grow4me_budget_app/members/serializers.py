@@ -122,7 +122,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Accounts
-        fields = ['user_id', 'first_name', 'last_name', 'username', 'role']
+        fields = ['user_id', 'first_name', 'last_name', 'username', 'role', 'phone']
     # balance = serializers.SerializerMethodField(source='get_balance')
     # interest_gained = serializers.SerializerMethodField(source='get_interest_gained')
 
