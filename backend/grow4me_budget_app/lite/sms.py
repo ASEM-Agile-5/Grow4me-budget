@@ -22,7 +22,7 @@ def send_sms(phone, message):
         url = "https://api.mnotify.com/api/sms/quick"
         payload = {
             "key": settings.MNOTIFY_API_KEY,
-            "to": _normalize_phone(phone),
+            "recipient": _normalize_phone(phone),
             "msg": message,
             "sender_id": settings.MNOTIFY_SENDER_ID,
         }
