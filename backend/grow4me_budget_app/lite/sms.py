@@ -15,11 +15,14 @@ def _normalize_phone(phone):
 
 
 def send_sms(phone, message):
+    if not phone:
+        logger.error("SMS skipped: no phone number provided")
+        return {"status": "error", "message": "No phone number"}
     try:
         url = "https://api.mnotify.com/api/sms/quick"
         payload = {
             "key": settings.MNOTIFY_API_KEY,
-            "to[]": _normalize_phone(phone),
+            "to": _normalize_phone(phone),
             "msg": message,
             "sender_id": settings.MNOTIFY_SENDER_ID,
         }
