@@ -1,5 +1,6 @@
 import traceback
 import jwt
+from google.api_core.exceptions import ResourceExhausted
 from rest_framework import status, views
 from rest_framework.response import Response
 from django.conf import settings
@@ -1165,9 +1166,14 @@ class BudgetAIParseView(views.APIView):
 
             # Final validation and enrichment
             validated_result = validate_and_enrich(result)
-            
+
             return Response(validated_result, status=status.HTTP_200_OK)
 
+        except ResourceExhausted:
+            return Response(
+                {"error": "Gemini API quota exceeded. Please try again later or check your billing plan."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
         except Exception as e:
             traceback.print_exc()
             return Response(
