@@ -74,8 +74,16 @@ const CreateBudget = () => {
   };
 
   const validateMetadata = () => {
-    if (!budgetName.trim() || !selectedProject) {
-      setShowValidationAlert(true);
+    if (!budgetName.trim() && !selectedProject) {
+      setValidationError("Please enter a Budget Name and select a Project before continuing.");
+      return false;
+    }
+    if (!budgetName.trim()) {
+      setValidationError("Please enter a Budget Name before continuing.");
+      return false;
+    }
+    if (!selectedProject) {
+      setValidationError("Please select a Project before continuing.");
       return false;
     }
     setValidationError("");
@@ -168,8 +176,17 @@ const CreateBudget = () => {
         `Based on ${budget.project} (${budget.year})`,
         items,
       );
-    } catch {
-      toast.error("Failed to fetch historical budget details.");
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status === 404) {
+        toast.error("Budget not found — it may have been deleted.");
+      } else if (status === 403) {
+        toast.error("You don't have permission to access this budget.");
+      } else if (!navigator.onLine) {
+        toast.error("You're offline. Connect to the internet and try again.");
+      } else {
+        toast.error("Could not load this budget's details. Please try again.");
+      }
     } finally {
       setFetchingHistorical(false);
     }
@@ -205,8 +222,18 @@ const CreateBudget = () => {
         parsed,
       );
     } catch (error: any) {
-      toast.error("Failed to parse budget text. Please try again.");
-      console.error(error);
+      const status = error?.response?.status;
+      if (status === 429) {
+        toast.error("The AI assistant is temporarily rate-limited. Please wait a minute and try again.");
+      } else if (status === 400) {
+        toast.error("Your text couldn't be parsed — try rewording your budget description and try again.");
+      } else if (status === 503 || status === 502) {
+        toast.error("The AI service is temporarily unavailable. Please try again in a moment.");
+      } else if (!navigator.onLine) {
+        toast.error("You're offline. Connect to the internet to use the AI budget creator.");
+      } else {
+        toast.error("Failed to parse your budget text. Please check your connection and try again.");
+      }
     } finally {
       setParsing(false);
     }
@@ -240,10 +267,19 @@ const CreateBudget = () => {
       toast.success(`Budget created with ${items.length} items!`);
       navigate("/budgets");
     } catch (error: any) {
-      toast.error(
-        error?.response?.data?.message ||
-          "Failed to create budget. Please try again.",
-      );
+      const msg = error?.response?.data?.message;
+      const status = error?.response?.status;
+      if (msg) {
+        toast.error(msg);
+      } else if (status === 409) {
+        toast.error("A budget with this name already exists for the selected project and year.");
+      } else if (status === 400) {
+        toast.error("Some budget details are invalid. Please review your entries and try again.");
+      } else if (!navigator.onLine) {
+        toast.error("You're offline. Connect to the internet to create a budget.");
+      } else {
+        toast.error("Failed to create budget. Please check your connection and try again.");
+      }
     } finally {
       setIsConfirming(false);
     }
