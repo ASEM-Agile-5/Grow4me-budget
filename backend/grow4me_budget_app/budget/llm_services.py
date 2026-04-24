@@ -1,115 +1,132 @@
 import os
+import re
 import csv
 import json
 import uuid
 from PyPDF2 import PdfReader
-import google.generativeai as genai
 from .models import BudgetCategory
 
-# Configure Gemini
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-SYSTEM_PROMPT = """You are an agricultural financial assistant.
+CATEGORY_KEYWORDS = [
+    (["seed", "seedling", "planting material", "germination"], "Seeds"),
+    (["fertilizer", "fertiliser", "manure", "compost", "npk", "urea", "lime"], "Fertilizer"),
+    (["labor", "labour", "worker", "wage", "salary", "casual", "harvesting", "weeding", "planting labor"], "Labor"),
+    (["pesticide", "herbicide", "fungicide", "insecticide", "chemical", "weedicide", "agrochemical"], "Pesticides"),
+    (["transport", "transportation", "logistics", "delivery", "truck", "freight", "vehicle", "haulage"], "Transport"),
+    (["equipment", "tool", "machinery", "tractor", "pump", "sprayer", "machine"], "Equipment"),
+    (["irrigation", "sprinkler", "drip", "watering", "pipe"], "Irrigation"),
+    (["land", "rent", "lease", "field prep", "land clearing", "ploughing", "tillage"], "Land"),
+    (["storage", "warehouse", "silo", "sack", "bag", "packaging"], "Storage"),
+    (["fuel", "diesel", "petrol", "gas"], "Fuel"),
+    (["water", "water supply"], "Irrigation"),
+]
 
-Your task is to convert unstructured farm-related input into a structured budget list.
+FILLER_WORDS = r"\b(i need|i want|we need|we want|for|costing|at|worth|of|on|the|a|an|some|and|about|approximately|around|roughly|buy|purchase|get|spend|cost)\b"
 
-OUTPUT FORMAT:
-Return ONLY a valid JSON array. No explanations.
-
-Each object must follow this schema:
-- id: generate a UUID
-- budget: provided externally (leave as null if not given)
-- category: must match a provided category_id
-- category_id: same as category
-- planned_amount: string decimal (e.g. "5000.00")
-- spent: always 0.0
-- category_name: must match category
-- description: short but clear explanation of the expense
-
-RULES:
-
-1. You will be given a list of valid categories:
-   Each category has:
-   - id
-   - name
-
-2. You MUST map each item to the closest category.
-
-3. If no category matches:
-   - Use category_name = "Other"
-   - Use the provided "Other" category_id
-   - Add a meaningful description explaining why it is uncategorized
-
-4. Extract all monetary values clearly.
-5. If no amount is given, estimate reasonably but conservatively.
-6. Split combined items into separate entries.
-7. Keep descriptions short and practical.
-
-DO NOT:
-- Return text outside JSON
-- Invent categories outside the provided list
-- Leave required fields empty
-
-INPUT:
-{user_input}
-
-CATEGORIES:
-{category_list}
-"""
 
 def get_categories():
-    """Fetch categories from the database."""
     return list(BudgetCategory.objects.all().values("id", "category_name"))
 
+
 def extract_pdf_text(file):
-    """Extract text from an uploaded PDF file."""
     reader = PdfReader(file)
     text = ""
     for page in reader.pages:
         text += page.extract_text() or ""
     return text
 
+
+def _find_category(segment_text, categories):
+    text_lower = segment_text.lower()
+    for keywords, target_name in CATEGORY_KEYWORDS:
+        for kw in keywords:
+            if kw in text_lower:
+                match = next(
+                    (c for c in categories if target_name.lower() in c["category_name"].lower()),
+                    None,
+                )
+                if match:
+                    return match
+    other_cat, _ = BudgetCategory.objects.get_or_create(category_name="Other")
+    return {"id": str(other_cat.id), "category_name": "Other"}
+
+
 def run_llm_pipeline(text):
-    """Process natural language text using Gemini to generate budget items."""
+    """
+    Parse natural language budget text into structured items using regex
+    and keyword matching. No external AI API required.
+    """
     categories = get_categories()
-    
-    # Structure categories for prompt
-    cat_list_str = json.dumps([{"id": str(c["id"]), "name": c["category_name"]} for c in categories])
-    
-    prompt = SYSTEM_PROMPT.format(
-        user_input=text,
-        category_list=cat_list_str
-    )
 
-    model = genai.GenerativeModel("gemini-2.0-flash")
-    
-    # Gemini 1.5 Flash supports system instructions and generation config for JSON
-    response = model.generate_content(
-        prompt,
-        generation_config=genai.GenerationConfig(
-            response_mime_type="application/json",
-        )
-    )
+    # Split into segments by comma, semicolon, newline, or the word "and"
+    segments = re.split(r"[,;\n]|\band\b", text, flags=re.IGNORECASE)
 
-    content = response.text.strip()
-    print(content)
-    return json.loads(content)
+    items = []
+    seen_amounts = set()
+
+    for seg in segments:
+        seg = seg.strip()
+        if not seg:
+            continue
+
+        # Find all numbers in this segment
+        raw_numbers = re.findall(r"[\d,]+(?:\.\d+)?", seg)
+        if not raw_numbers:
+            continue
+
+        amounts = []
+        for n in raw_numbers:
+            try:
+                amounts.append(float(n.replace(",", "")))
+            except ValueError:
+                continue
+
+        amounts = [a for a in amounts if a > 0]
+        if not amounts:
+            continue
+
+        # Use the largest number as the planned amount to avoid picking up quantities
+        amount = max(amounts)
+        if amount in seen_amounts:
+            continue
+        seen_amounts.add(amount)
+
+        # Strip numbers and filler words to derive a clean description
+        desc = re.sub(r"[\d,]+(?:\.\d+)?", "", seg)
+        desc = re.sub(FILLER_WORDS, " ", desc, flags=re.IGNORECASE)
+        desc = re.sub(r"[^\w\s]", " ", desc)
+        desc = re.sub(r"\s+", " ", desc).strip()
+
+        if not desc:
+            desc = "Budget item"
+
+        cat = _find_category(seg, categories)
+
+        items.append({
+            "id": str(uuid.uuid4()),
+            "budget": None,
+            "category": str(cat["id"]),
+            "category_id": str(cat["id"]),
+            "planned_amount": f"{amount:.2f}",
+            "spent": 0.0,
+            "category_name": cat["category_name"],
+            "description": desc.capitalize(),
+        })
+
+    return items
+
 
 def process_csv(file):
-    """Directly convert CSV data into budget items without LLM intervention."""
     categories = get_categories()
     category_map = {c["category_name"].lower(): str(c["id"]) for c in categories}
-    
-    # Ensure "Other" category exists
+
     other_cat, _ = BudgetCategory.objects.get_or_create(category_name="Other")
     other_cat_id = str(other_cat.id)
 
     result = []
-    # Read CSV
     decoded_file = file.read().decode("utf-8-sig").splitlines()
     reader = csv.DictReader(decoded_file)
-    
-    # Validate headers
+
     required_headers = {"category_name", "planned_amount", "description"}
     if not required_headers.issubset(set(reader.fieldnames or [])):
         return {"error": f"Invalid CSV headers. Required: {', '.join(required_headers)}"}
@@ -131,17 +148,16 @@ def process_csv(file):
             "planned_amount": str(row.get("planned_amount", "0.00")),
             "spent": 0.0,
             "category_name": category_name,
-            "description": row.get("description", "No description provided")
+            "description": row.get("description", "No description provided"),
         })
 
     return result
 
+
 def validate_and_enrich(data):
-    """Final validation to ensure all items map correctly to database categories."""
     categories = get_categories()
     category_map = {str(c["id"]): c["category_name"] for c in categories}
-    
-    # Ensure "Other" exists
+
     other_cat, _ = BudgetCategory.objects.get_or_create(category_name="Other")
     other_cat_id = str(other_cat.id)
 
@@ -151,5 +167,5 @@ def validate_and_enrich(data):
             item["category"] = other_cat_id
             item["category_id"] = other_cat_id
             item["category_name"] = "Other"
-            
+
     return data
