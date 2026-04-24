@@ -30,7 +30,7 @@ const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 const TABS = [
   { key: "templates", label: "Templates", Icon: FileText },
   { key: "historical", label: "Historical", Icon: History },
-  { key: "text", label: "Text Import", Icon: MessageSquareText },
+  { key: "text", label: "Create with AI", Icon: MessageSquareText },
 ];
 
 const CreateBudget = () => {
